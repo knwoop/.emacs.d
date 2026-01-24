@@ -521,7 +521,20 @@
   (global-set-key (kbd "C-x k") 'kill-this-buffer)
 
   ;; Comment toggle
-  (global-set-key (kbd "C-c /") 'comment-or-uncomment-region))
+  (global-set-key (kbd "C-c /") 'comment-or-uncomment-region)
+
+  ;; Smart TAB: move to first non-whitespace when cursor is before it
+  (defun my/smart-tab ()
+    "If cursor is before first non-whitespace, move there.
+Otherwise, do normal indentation."
+    (interactive)
+    (let ((col (current-column))
+          (indent-col (save-excursion (back-to-indentation) (current-column))))
+      (if (and (< col indent-col) (> indent-col 0))
+          (back-to-indentation)
+        (indent-for-tab-command))))
+  (global-set-key (kbd "TAB") 'my/smart-tab)
+  (global-set-key (kbd "<tab>") 'my/smart-tab))
 
 ;; ============================================================================
 ;; Local Configuration (if exists)
