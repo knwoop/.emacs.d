@@ -453,6 +453,24 @@
   (git-gutter:update-interval . 0.5)
   :blackout t)
 
+(defun my/open-pr-for-current-line ()
+  "Open the GitHub PR for the current line."
+  (interactive)
+  (let* ((line-number (line-number-at-pos))
+         (file-name (buffer-file-name))
+         (commit-hash
+          (string-trim
+           (shell-command-to-string
+            (format "git blame -L %d,%d --porcelain %s | head -n 1 | cut -d ' ' -f 1"
+                    line-number line-number file-name)))))
+    (if (and commit-hash
+             (not (string-empty-p commit-hash))
+             (not (string-match-p "^0+$" commit-hash)))
+        (shell-command (format "~/.config/scripts/bin/git-open-pr %s" commit-hash))
+      (message "No commit found for this line (uncommitted changes?)"))))
+
+(global-set-key (kbd "C-c g p") #'my/open-pr-for-current-line)
+
 ;; ============================================================================
 ;; Project Management
 ;; ============================================================================
