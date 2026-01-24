@@ -85,6 +85,9 @@
   (setq-default indent-tabs-mode nil
                 tab-width 4)
 
+  ;; Disable electric indent (causes issues in Go)
+  (electric-indent-mode -1)
+
   ;; Electric pair
   (electric-pair-mode 1)
 
@@ -356,18 +359,36 @@
 ;; Programming Languages
 ;; ============================================================================
 
-(leaf go-mode
-  :ensure t
-  :mode "\\.go\\'"
+;; go-ts-mode (Emacs 29+ built-in, tree-sitter based)
+(leaf go-ts-mode
   :hook
-  (go-mode-hook . (lambda ()
-                    (setq tab-width 4
-                          indent-tabs-mode t)))
+  (go-ts-mode-hook . (lambda ()
+                       (setq tab-width 4
+                             indent-tabs-mode t)
+                       ;; Disable electric-indent (causes double indent)
+                       (electric-indent-local-mode -1)))
   :config
   ;; Format and organize imports on save
   (add-hook 'before-save-hook
             (lambda ()
-              (when (derived-mode-p 'go-mode 'go-ts-mode)
+              (when (derived-mode-p 'go-ts-mode)
+                (lsp-format-buffer)
+                (lsp-organize-imports)))))
+
+;; go-mode (fallback for older Emacs or when tree-sitter unavailable)
+(leaf go-mode
+  :ensure t
+  :unless (and (fboundp 'treesit-available-p) (treesit-available-p))
+  :mode "\\.go\\'"
+  :hook
+  (go-mode-hook . (lambda ()
+                    (setq tab-width 4
+                          indent-tabs-mode t)
+                    (electric-indent-local-mode -1)))
+  :config
+  (add-hook 'before-save-hook
+            (lambda ()
+              (when (derived-mode-p 'go-mode)
                 (lsp-format-buffer)
                 (lsp-organize-imports)))))
 
@@ -417,12 +438,13 @@
   :setq
   (magit-display-buffer-function . #'magit-display-buffer-same-window-except-diff-v1))
 
-(leaf git-gutter
-  :ensure t
-  :hook (prog-mode-hook . git-gutter-mode)
-  :setq
-  (git-gutter:update-interval . 0.5)
-  :blackout t)
+;; Git-gutter disabled due to display issues in terminal + tmux
+;; (leaf git-gutter
+;;   :ensure t
+;;   :hook (prog-mode-hook . git-gutter-mode)
+;;   :setq
+;;   (git-gutter:update-interval . 0.5)
+;;   :blackout t)
 
 ;; ============================================================================
 ;; Project Management
