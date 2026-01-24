@@ -4,6 +4,11 @@
 ;; Centaur Emacs inspired minimal configuration.
 ;; Uses leaf.el for package management.
 ;; Designed for emacs --daemon usage.
+;;
+;; First-time setup for Copilot:
+;;   1. M-x copilot-install-server (install Copilot language server)
+;;   2. M-x copilot-login (authenticate with GitHub)
+;;   3. M-x copilot-diagnose (verify setup)
 
 ;;; Code:
 
@@ -265,22 +270,37 @@
 
 (leaf corfu
   :ensure t
-  :hook ((after-init-hook . global-corfu-mode)
-         (after-init-hook . corfu-popupinfo-mode))
+  :require t
   :setq
   (corfu-auto . t)
-  (corfu-auto-delay . 0.2)
-  (corfu-auto-prefix . 2)
+  (corfu-auto-delay . 0.1)
+  (corfu-auto-prefix . 1)
   (corfu-cycle . t)
   (corfu-preselect . 'prompt)
-  (corfu-popupinfo-delay . '(0.5 . 0.2)))
+  :config
+  (global-corfu-mode 1)
+  ;; Enable corfu in minibuffer for M-: etc
+  (defun corfu-enable-in-minibuffer ()
+    "Enable Corfu in the minibuffer."
+    (when (local-variable-p 'completion-at-point-functions)
+      (setq-local corfu-auto nil)
+      (corfu-mode 1)))
+  (add-hook 'minibuffer-setup-hook #'corfu-enable-in-minibuffer))
+
+;; corfu-terminal: Enable corfu popup in terminal (non-GUI) Emacs
+(leaf corfu-terminal
+  :ensure t
+  :after corfu
+  :config
+  (unless (display-graphic-p)
+    (corfu-terminal-mode 1)))
 
 (leaf cape
   :ensure t
   :config
-  (add-to-list 'completion-at-point-functions #'cape-dabbrev)
-  (add-to-list 'completion-at-point-functions #'cape-file)
-  (add-to-list 'completion-at-point-functions #'cape-keyword))
+  ;; Add cape backends to end of list (LSP capf takes priority)
+  (add-to-list 'completion-at-point-functions #'cape-dabbrev t)
+  (add-to-list 'completion-at-point-functions #'cape-file t))
 
 ;; ============================================================================
 ;; LSP Mode
@@ -299,6 +319,7 @@
          (python-ts-mode-hook  . lsp-deferred)
          (rust-mode-hook       . lsp-deferred)
          (rust-ts-mode-hook    . lsp-deferred)
+         (lsp-mode-hook        . lsp-completion-mode)
          (lsp-mode-hook        . lsp-enable-which-key-integration))
   :init
   ;; @see https://emacs-lsp.github.io/lsp-mode/page/performance
@@ -316,7 +337,7 @@
   (lsp-enable-indentation . nil)
   (lsp-enable-on-type-formatting . nil)
   ;; Completion
-  (lsp-completion-provider . :none)
+  (lsp-completion-provider . :capf)
   (lsp-completion-show-detail . t)
   (lsp-completion-show-kind . t)
   ;; Signature
@@ -635,6 +656,86 @@
   (wgrep-change-readonly-file . t))
 
 ;; ============================================================================
+;; GitHub Copilot
+;; ============================================================================
+
+;; editorconfig is required by copilot.el
+(leaf editorconfig
+  :ensure t
+  :hook (after-init-hook . editorconfig-mode)
+  :blackout t)
+
+;; Compatibility fix: Define corfu--popup-p if it doesn't exist
+;; copilot.el tries to call this function to check if corfu popup is visible
+(with-eval-after-load 'corfu
+  (unless (fboundp 'corfu--popup-p)
+    (defun corfu--popup-p ()
+      "Return non-nil if corfu popup is visible."
+      (and (boundp 'corfu--frame)
+           corfu--frame
+           (frame-visible-p corfu--frame)))))
+
+(leaf copilot
+  :ensure t
+  :hook (prog-mode-hook . copilot-mode)
+  :bind
+  (copilot-completion-map
+   ;; Accept completion with Tab
+   ("<tab>"   . copilot-accept-completion)
+   ("TAB"     . copilot-accept-completion)
+   ;; Accept by word/line
+   ("C-<tab>" . copilot-accept-completion-by-word)
+   ("M-<tab>" . copilot-accept-completion-by-line)
+   ;; Navigate completions
+   ("M-n"     . copilot-next-completion)
+   ("M-p"     . copilot-previous-completion)
+   ;; Dismiss completion
+   ("C-g"     . copilot-clear-overlay))
+  :setq
+  ;; Idle delay before showing suggestions (seconds)
+  (copilot-idle-delay . 0.1)
+  ;; Max char limit for buffer (completions may not work in large files)
+  (copilot-max-char . 100000)
+  :config
+  ;; Disable copilot in certain modes
+  (add-to-list 'copilot-disable-predicates
+               (lambda () (member major-mode '(shell-mode
+                                               eshell-mode
+                                               vterm-mode
+                                               term-mode))))
+
+  ;; Disable copilot when mark is active (selecting text)
+  (add-to-list 'copilot-disable-predicates
+               (lambda () (use-region-p)))
+
+  ;; Disable copilot when corfu popup is visible (avoid conflicts)
+  (add-to-list 'copilot-disable-predicates
+               (lambda ()
+                 (and (fboundp 'corfu--popup-p)
+                      (corfu--popup-p))))
+
+  ;; Map tree-sitter modes to copilot language IDs
+  (add-to-list 'copilot-major-mode-alist '("typescript-ts" . "typescript"))
+  (add-to-list 'copilot-major-mode-alist '("tsx-ts" . "typescriptreact"))
+  (add-to-list 'copilot-major-mode-alist '("js-ts" . "javascript"))
+  (add-to-list 'copilot-major-mode-alist '("go-ts" . "go"))
+  (add-to-list 'copilot-major-mode-alist '("python-ts" . "python"))
+  (add-to-list 'copilot-major-mode-alist '("rust-ts" . "rust"))
+  (add-to-list 'copilot-major-mode-alist '("json-ts" . "json"))
+  (add-to-list 'copilot-major-mode-alist '("yaml-ts" . "yaml")))
+
+;; Copilot Chat (optional - for AI chat functionality)
+;; Uncomment if you want chat features
+;; (leaf copilot-chat
+;;   :ensure t
+;;   :after copilot
+;;   :bind
+;;   (("C-c c c" . copilot-chat-display)
+;;    ("C-c c e" . copilot-chat-explain)
+;;    ("C-c c r" . copilot-chat-review)
+;;    ("C-c c f" . copilot-chat-fix)))
+
+;; ============================================================================
 ;; Terminal / Shell
 ;; ============================================================================
 
@@ -661,7 +762,12 @@
   (global-set-key (kbd "C-x k") 'kill-this-buffer)
 
   ;; Comment toggle
-  (global-set-key (kbd "C-c /") 'comment-or-uncomment-region))
+  (global-set-key (kbd "C-c /") 'comment-or-uncomment-region)
+
+  ;; Copilot shortcuts (global)
+  (global-set-key (kbd "C-c c t") 'copilot-mode)           ; Toggle copilot
+  (global-set-key (kbd "C-c c c") 'copilot-complete)       ; Manual completion
+  (global-set-key (kbd "C-c c d") 'copilot-diagnose))      ; Check status
 
 ;; ============================================================================
 ;; Local Configuration (if exists)
