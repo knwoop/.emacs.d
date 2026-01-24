@@ -113,10 +113,10 @@
   ;; Tabs (Emacs 27+)
   (setq tab-bar-show 1)
 
-  ;; Tab-line (buffer tabs like screenshot)
+  ;; Tab-line (buffer tabs)
   (global-tab-line-mode 1)
-  (setq tab-line-new-button-show nil      ; 新規タブボタン非表示
-        tab-line-close-button-show nil)   ; 閉じるボタン非表示
+  (setq tab-line-new-button-show nil
+        tab-line-close-button-show nil)
 
   ;; Whitespace
   (setq-default show-trailing-whitespace nil)
@@ -190,10 +190,10 @@
   :setq
   (doom-modeline-height . 25)
   (doom-modeline-bar-width . 3)
-  (doom-modeline-icon . nil)              ; アイコン無効
-  (doom-modeline-major-mode-icon . nil)   ; メジャーモードアイコン無効
-  (doom-modeline-buffer-file-name-style . 'file-name)  ; ファイル名のみ
-  (doom-modeline-buffer-encoding . nil)   ; エンコーディング非表示
+  (doom-modeline-icon . nil)
+  (doom-modeline-major-mode-icon . nil)
+  (doom-modeline-buffer-file-name-style . 'file-name)
+  (doom-modeline-buffer-encoding . nil)
   (doom-modeline-vcs-max-length . 20))
 
 ;; Icons (disabled for minimal UI)
@@ -216,7 +216,7 @@
 ;; Directory navigation for vertico (DEL deletes directory)
 (leaf vertico-directory
   :after vertico
-  :ensure nil  ; included in vertico
+  :ensure nil
   :require t
   :bind
   (vertico-map
@@ -291,8 +291,9 @@
   :commands (lsp lsp-deferred)
   :hook ((go-mode-hook         . lsp-deferred)
          (go-ts-mode-hook      . lsp-deferred)
-         (typescript-mode-hook . lsp-deferred)
          (typescript-ts-mode-hook . lsp-deferred)
+         (tsx-ts-mode-hook     . lsp-deferred)
+         (js-ts-mode-hook      . lsp-deferred)
          (js-mode-hook         . lsp-deferred)
          (python-mode-hook     . lsp-deferred)
          (python-ts-mode-hook  . lsp-deferred)
@@ -301,21 +302,21 @@
          (lsp-mode-hook        . lsp-enable-which-key-integration))
   :init
   ;; @see https://emacs-lsp.github.io/lsp-mode/page/performance
-  (setq read-process-output-max (* 1024 1024))  ; 1MB
+  (setq read-process-output-max (* 1024 1024))
   :setq
   (lsp-keymap-prefix . "C-c l")
   ;; Performance (Centaur Emacs style)
   (lsp-idle-delay . 0.5)
   (lsp-log-io . nil)
   (lsp-keep-workspace-alive . nil)
-  (lsp-enable-file-watchers . nil)           ; Disable for large projects/monorepo
+  (lsp-enable-file-watchers . nil)
   (lsp-enable-folding . nil)
   (lsp-enable-symbol-highlighting . nil)
   (lsp-enable-text-document-color . nil)
-  (lsp-enable-indentation . nil)             ; Use mode's own indentation
+  (lsp-enable-indentation . nil)
   (lsp-enable-on-type-formatting . nil)
   ;; Completion
-  (lsp-completion-provider . :none)          ; Use corfu
+  (lsp-completion-provider . :none)
   (lsp-completion-show-detail . t)
   (lsp-completion-show-kind . t)
   ;; Signature
@@ -325,13 +326,16 @@
   (lsp-headerline-breadcrumb-enable . t)
   (lsp-headerline-breadcrumb-segments . '(project file symbols))
   ;; Lens
-  (lsp-lens-enable . nil)                    ; Can be slow in large files
+  (lsp-lens-enable . nil)
   ;; Semantic tokens
   (lsp-semantic-tokens-enable . t)
   ;; Modeline
   (lsp-modeline-code-actions-enable . nil)
   (lsp-modeline-diagnostics-enable . nil)
   (lsp-modeline-workspace-status-enable . nil)
+  ;; ESLint integration (reads project's .eslintrc automatically)
+  (lsp-eslint-auto-fix-on-save . t)
+  (lsp-eslint-run . "onType")
   :config
   ;; Register completion function for orderless
   (defun my/lsp-mode-setup-completion ()
@@ -365,8 +369,28 @@
    ("C-c l d" . lsp-ui-doc-glance)))
 
 ;; ============================================================================
+;; Tree-sitter (Emacs 29+)
+;; ============================================================================
+
+(leaf treesit-auto
+  :ensure t
+  :when (and (>= emacs-major-version 29)
+             (fboundp 'treesit-available-p)
+             (treesit-available-p))
+  :init
+  (setq treesit-auto-install 'prompt)
+  :config
+  ;; Prefer tree-sitter modes when available
+  (treesit-auto-add-to-auto-mode-alist 'all)
+  :global-minor-mode global-treesit-auto-mode)
+
+;; ============================================================================
 ;; Programming Languages
 ;; ============================================================================
+
+;; ----------------------------------------------------------------------------
+;; Go
+;; ----------------------------------------------------------------------------
 
 ;; go-ts-mode (Emacs 29+ built-in, tree-sitter based)
 (leaf go-ts-mode
@@ -400,13 +424,73 @@
                 (lsp-format-buffer)
                 (lsp-organize-imports)))))
 
+;; ----------------------------------------------------------------------------
+;; TypeScript / JavaScript
+;; ----------------------------------------------------------------------------
+
+;; TypeScript with tree-sitter (Emacs 29+)
+(leaf typescript-ts-mode
+  :mode (("\\.ts\\'" . typescript-ts-mode)
+         ("\\.mts\\'" . typescript-ts-mode)
+         ("\\.cts\\'" . typescript-ts-mode))
+  :init
+  (setq typescript-ts-mode-indent-offset 2))
+
+;; TSX with tree-sitter
+(leaf tsx-ts-mode
+  :mode "\\.tsx\\'"
+  :init
+  (setq typescript-ts-mode-indent-offset 2))
+
+;; JavaScript with tree-sitter
+(leaf js-ts-mode
+  :mode (("\\.js\\'" . js-ts-mode)
+         ("\\.mjs\\'" . js-ts-mode)
+         ("\\.cjs\\'" . js-ts-mode)
+         ("\\.jsx\\'" . js-ts-mode))
+  :init
+  (setq js-indent-level 2))
+
+;; Add project-local node_modules/.bin to PATH
+;; This ensures ESLint, Prettier, etc. use project-specific versions
+(leaf add-node-modules-path
+  :ensure t
+  :hook ((typescript-ts-mode-hook . add-node-modules-path)
+         (tsx-ts-mode-hook . add-node-modules-path)
+         (js-ts-mode-hook . add-node-modules-path)
+         (js-mode-hook . add-node-modules-path)
+         (json-ts-mode-hook . add-node-modules-path)
+         (json-mode-hook . add-node-modules-path)))
+
+;; Auto-formatting with Prettier (respects project's .prettierrc)
+(leaf apheleia
+  :ensure t
+  :hook (after-init-hook . apheleia-global-mode)
+  :config
+  ;; Use npx to run project-local prettier
+  (setf (alist-get 'prettier apheleia-formatters)
+        '("npx" "prettier" "--stdin-filepath" filepath))
+  ;; Use prettier for TypeScript/JavaScript files
+  (setf (alist-get 'typescript-ts-mode apheleia-mode-alist) '(prettier))
+  (setf (alist-get 'tsx-ts-mode apheleia-mode-alist) '(prettier))
+  (setf (alist-get 'js-ts-mode apheleia-mode-alist) '(prettier))
+  (setf (alist-get 'js-mode apheleia-mode-alist) '(prettier))
+  (setf (alist-get 'json-ts-mode apheleia-mode-alist) '(prettier))
+  (setf (alist-get 'json-mode apheleia-mode-alist) '(prettier)))
+
+;; ----------------------------------------------------------------------------
+;; Other Languages
+;; ----------------------------------------------------------------------------
+
 (leaf yaml-mode
   :ensure t
   :mode "\\.ya?ml\\'")
 
 (leaf json-mode
   :ensure t
-  :mode "\\.json\\'")
+  :mode "\\.json\\'"
+  :init
+  (setq js-indent-level 2))
 
 (leaf markdown-mode
   :ensure t
@@ -423,16 +507,6 @@
 (leaf terraform-mode
   :ensure t
   :mode "\\.tf\\'")
-
-;; Tree-sitter (Emacs 29+)
-(leaf treesit-auto
-  :ensure t
-  :when (and (>= emacs-major-version 29)
-             (fboundp 'treesit-available-p)
-             (treesit-available-p))
-  :init
-  (setq treesit-auto-install 'prompt)
-  :global-minor-mode global-treesit-auto-mode)
 
 ;; ============================================================================
 ;; Version Control
@@ -492,7 +566,20 @@
   :setq
   (flycheck-emacs-lisp-load-path . 'inherit)
   (flycheck-display-errors-delay . 0.3)
-  :blackout t)
+  :blackout t
+  :config
+  ;; Use project-local eslint for JavaScript/TypeScript
+  (defun my/use-local-eslint ()
+    "Use local eslint from node_modules if available."
+    (let* ((root (locate-dominating-file
+                  (or (buffer-file-name) default-directory)
+                  "node_modules"))
+           (eslint (and root
+                        (expand-file-name "node_modules/.bin/eslint" root))))
+      (when (and eslint (file-executable-p eslint))
+        (setq-local flycheck-javascript-eslint-executable eslint))))
+
+  (add-hook 'flycheck-mode-hook #'my/use-local-eslint))
 
 ;; ============================================================================
 ;; Editing Enhancement
@@ -536,7 +623,7 @@
         (er/expand-region 1)
       (set-mark-command nil)))
   (global-set-key (kbd "C-SPC") 'my/set-mark-or-expand-region)
-  (global-set-key (kbd "C-@") 'my/set-mark-or-expand-region)  ; Terminal
+  (global-set-key (kbd "C-@") 'my/set-mark-or-expand-region)
   :config
   (setq expand-region-contract-fast-key "-"
         expand-region-reset-fast-key "0"))
