@@ -438,13 +438,12 @@
   :setq
   (magit-display-buffer-function . #'magit-display-buffer-same-window-except-diff-v1))
 
-;; Git-gutter disabled due to display issues in terminal + tmux
-;; (leaf git-gutter
-;;   :ensure t
-;;   :hook (prog-mode-hook . git-gutter-mode)
-;;   :setq
-;;   (git-gutter:update-interval . 0.5)
-;;   :blackout t)
+(leaf git-gutter
+  :ensure t
+  :hook (prog-mode-hook . git-gutter-mode)
+  :setq
+  (git-gutter:update-interval . 0.5)
+  :blackout t)
 
 ;; ============================================================================
 ;; Project Management
@@ -490,6 +489,12 @@
   :bind
   (("C-/" . undo-fu-only-undo)
    ("C-?" . undo-fu-only-redo)))
+
+(leaf mwim
+  :ensure t
+  :bind
+  (("C-a" . mwim-beginning-of-code-or-line)
+   ("C-e" . mwim-end-of-code-or-line)))
 
 (leaf expand-region
   :ensure t
@@ -543,20 +548,7 @@
   (global-set-key (kbd "C-x k") 'kill-this-buffer)
 
   ;; Comment toggle
-  (global-set-key (kbd "C-c /") 'comment-or-uncomment-region)
-
-  ;; Smart TAB: move to first non-whitespace when cursor is before it
-  (defun my/smart-tab ()
-    "If cursor is before first non-whitespace, move there.
-Otherwise, do normal indentation."
-    (interactive)
-    (let ((col (current-column))
-          (indent-col (save-excursion (back-to-indentation) (current-column))))
-      (if (and (< col indent-col) (> indent-col 0))
-          (back-to-indentation)
-        (indent-for-tab-command))))
-  (global-set-key (kbd "TAB") 'my/smart-tab)
-  (global-set-key (kbd "<tab>") 'my/smart-tab))
+  (global-set-key (kbd "C-c /") 'comment-or-uncomment-region))
 
 ;; ============================================================================
 ;; Local Configuration (if exists)
