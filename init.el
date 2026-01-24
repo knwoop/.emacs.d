@@ -738,6 +738,20 @@
   (wgrep-auto-save-buffer . t)
   (wgrep-change-readonly-file . t))
 
+(leaf yasnippet
+  :ensure t
+  :hook (after-init-hook . yas-global-mode)
+  :bind
+  (yas-minor-mode-map
+   ("C-c y n" . yas-new-snippet)
+   ("C-c y v" . yas-visit-snippet-file)
+   ("C-c y i" . yas-insert-snippet))
+  :blackout yas-minor-mode)
+
+(leaf yasnippet-snippets
+  :ensure t
+  :after yasnippet)
+
 ;; ============================================================================
 ;; GitHub Copilot
 ;; ============================================================================
@@ -778,7 +792,7 @@
   ;; Idle delay before showing suggestions (seconds)
   (copilot-idle-delay . 0.1)
   ;; Max char limit for buffer (completions may not work in large files)
-  (copilot-max-char . 100000)
+  (copilot-max-char . 1000000)
   :config
   ;; Disable copilot in certain modes
   (add-to-list 'copilot-disable-predicates
