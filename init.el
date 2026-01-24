@@ -500,6 +500,89 @@
   (setf (alist-get 'json-mode apheleia-mode-alist) '(prettier)))
 
 ;; ----------------------------------------------------------------------------
+;; Rust
+;; ----------------------------------------------------------------------------
+
+;; rust-mode (works with or without tree-sitter)
+(leaf rust-mode
+  :ensure t
+  :mode "\\.rs\\'"
+  :setq
+  (rust-format-on-save . t)
+  :config
+  ;; Format on save with LSP if available
+  (add-hook 'before-save-hook
+            (lambda ()
+              (when (and (derived-mode-p 'rust-mode)
+                         (bound-and-true-p lsp-mode))
+                (lsp-format-buffer)))))
+
+;; Cargo integration
+(leaf cargo
+  :ensure t
+  :hook (rust-mode-hook . cargo-minor-mode))
+
+;; Cargo keybindings (after cargo is loaded)
+(with-eval-after-load 'cargo
+  (define-key cargo-minor-mode-map (kbd "C-c C-c C-b") #'cargo-process-build)
+  (define-key cargo-minor-mode-map (kbd "C-c C-c C-r") #'cargo-process-run)
+  (define-key cargo-minor-mode-map (kbd "C-c C-c C-t") #'cargo-process-test)
+  (define-key cargo-minor-mode-map (kbd "C-c C-c C-c") #'cargo-process-check)
+  (define-key cargo-minor-mode-map (kbd "C-c C-c C-l") #'cargo-process-clippy))
+
+;; ----------------------------------------------------------------------------
+;; Python
+;; ----------------------------------------------------------------------------
+
+;; python-ts-mode (Emacs 29+ built-in, tree-sitter based)
+(leaf python
+  :mode (("\\.py\\'" . python-ts-mode))
+  :init
+  (setq python-indent-offset 4)
+  :config
+  ;; Use ipython if available
+  (when (executable-find "ipython")
+    (setq python-shell-interpreter "ipython"
+          python-shell-interpreter-args "-i --simple-prompt")))
+
+;; Virtual environment support
+(leaf pyvenv
+  :ensure t
+  :hook (python-ts-mode-hook . pyvenv-tracking-mode)
+  :config
+  ;; Auto-activate venv if .venv or venv directory exists
+  (defun my/auto-activate-venv ()
+    "Automatically activate Python virtual environment."
+    (let* ((root (or (locate-dominating-file default-directory ".venv")
+                     (locate-dominating-file default-directory "venv")))
+           (venv-path (when root
+                        (cond
+                         ((file-directory-p (expand-file-name ".venv" root))
+                          (expand-file-name ".venv" root))
+                         ((file-directory-p (expand-file-name "venv" root))
+                          (expand-file-name "venv" root))))))
+      (when venv-path
+        (pyvenv-activate venv-path))))
+  (add-hook 'python-ts-mode-hook #'my/auto-activate-venv))
+
+;; Python formatting with ruff or black (via apheleia)
+(leaf apheleia
+  :after apheleia
+  :config
+  ;; Ruff formatter (fast, recommended)
+  (setf (alist-get 'ruff apheleia-formatters)
+        '("ruff" "format" "--stdin-filename" filepath "-"))
+  ;; Black formatter (alternative)
+  (setf (alist-get 'black apheleia-formatters)
+        '("black" "-"))
+  ;; isort for import sorting
+  (setf (alist-get 'isort apheleia-formatters)
+        '("isort" "--profile" "black" "-"))
+  ;; Use ruff for Python (change to 'black if preferred)
+  (setf (alist-get 'python-ts-mode apheleia-mode-alist) '(ruff))
+  (setf (alist-get 'python-mode apheleia-mode-alist) '(ruff)))
+
+;; ----------------------------------------------------------------------------
 ;; Other Languages
 ;; ----------------------------------------------------------------------------
 
