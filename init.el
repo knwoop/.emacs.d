@@ -1,263 +1,505 @@
-;; Package管理
-(package-initialize)
-(setq package-archives
-      '(("gnu" . "http://elpa.gnu.org/packages/")
-        ("melpa" . "http://melpa.org/packages/")
-        ("org" . "http://orgmode.org/elpa/")))
+;;; init.el --- My Minimal Emacs Config -*- lexical-binding: t -*-
 
-(require 'auto-install)
-(auto-install-compatibility-setup)
+;;; Commentary:
+;; Centaur Emacs inspired minimal configuration.
+;; Uses leaf.el for package management.
+;; Designed for emacs --daemon usage.
 
-;; cmdキーを superとして割り当てる
-(setq mac-command-modifier 'super)
+;;; Code:
 
-;; バックスペースの設定
-(global-set-key (kbd "C-h") 'delete-backward-char)
+;; ============================================================================
+;; Leaf.el Bootstrap
+;; ============================================================================
 
-;; auto-complete（自動補完）
-(require 'auto-complete)
-(require 'auto-complete-config)
-(setq ac-quick-help-delay 0.1)
-(setq ac-delay 0.1)
-(setq ac-auto-show-menu nil)
-(setq ac-auto-start nil)
-(ac-set-trigger-key "TAB")
-(add-hook 'auto-complete-mode-hook 'ac-common-setup)
-(setq-default ac-sources '(ac-source-abbrev
-			   ac-source-dictionary
-			   ac-source-words-in-same-mode-buffers))
-(add-to-list 'ac-sources 'ac-source-filename)
-(global-auto-complete-mode t)
+(eval-and-compile
+  (customize-set-variable
+   'package-archives '(("melpa"  . "https://melpa.org/packages/")
+                       ("gnu"    . "https://elpa.gnu.org/packages/")
+                       ("nongnu" . "https://elpa.nongnu.org/nongnu/")))
+  (package-initialize)
 
-;; font
-(add-to-list 'default-frame-alist '(font . "ricty-12"))
+  (unless (package-installed-p 'leaf)
+    (package-refresh-contents)
+    (package-install 'leaf))
 
-;; color theme
-(load-theme 'zenburn t)
+  (leaf leaf-keywords
+    :ensure t
+    :init
+    (leaf blackout :ensure t)
+    :config
+    (leaf-keywords-init)))
 
-;; alpha
-(if window-system 
-    (progn
-      (set-frame-parameter nil 'alpha 95)))
+;; ============================================================================
+;; Basic Settings
+;; ============================================================================
 
-;; 非アクティブウィンドウの背景色を設定
-;; (load-file "~/.emacs.d/site-lisp/hiwin.el")
-;; (set-face-background 'hiwin-face "gray30")
+(leaf *basic-settings
+  :config
+  ;; User info
+  (setq user-full-name "Kenta"
+        user-mail-address "")
 
-;; line numberの表示
-(require 'linum)
-(global-linum-mode 1)
+  ;; UTF-8
+  (prefer-coding-system 'utf-8)
+  (set-default-coding-systems 'utf-8)
+  (set-terminal-coding-system 'utf-8)
+  (set-keyboard-coding-system 'utf-8)
 
-;; tabサイズ
-(setq-default indent-tabs-mode nil)
-;;(setq default-tab-width 4)
+  ;; Basic behaviors
+  (setq inhibit-startup-message t
+        inhibit-startup-echo-area-message t
+        initial-scratch-message nil
+        ring-bell-function 'ignore
+        use-short-answers t
+        confirm-kill-emacs 'y-or-n-p)
 
-;; メニューバーを非表示
-(menu-bar-mode 0)
+  ;; Better scrolling
+  (setq scroll-margin 3
+        scroll-conservatively 101
+        scroll-preserve-screen-position t
+        auto-window-vscroll nil)
 
-;; ツールバーを非表示
-(tool-bar-mode 0)
+  ;; Line numbers
+  (setq-default display-line-numbers-width 4)
+  (add-hook 'prog-mode-hook #'display-line-numbers-mode)
 
-;; default scroll bar消去
-(scroll-bar-mode -1)
+  ;; Highlight current line
+  (global-hl-line-mode 1)
 
-;; 現在ポイントがある関数名をモードラインに表示
-(which-function-mode 1)
+  ;; Show matching parentheses
+  (show-paren-mode 1)
+  (setq show-paren-delay 0)
 
-;; 対応する括弧をハイライト
-(show-paren-mode 1)
+  ;; Auto revert
+  (global-auto-revert-mode 1)
+  (setq auto-revert-interval 1
+        auto-revert-check-vc-info t
+        global-auto-revert-non-file-buffers t)
 
-;; リージョンのハイライト
-(transient-mark-mode 1)
+  ;; Backup & autosave
+  (setq make-backup-files nil
+        auto-save-default nil
+        create-lockfiles nil)
 
-;; タイトルにフルパス表示
-(setq frame-title-format "%f")
+  ;; Indentation
+  (setq-default indent-tabs-mode nil
+                tab-width 4)
 
-;;current directory 表示
-(let ((ls (member 'mode-line-buffer-identification
-                  mode-line-format)))
-  (setcdr ls
-	  (cons '(:eval (concat " ("
-			  (abbreviate-file-name default-directory)
-            ")"))
-	  (cdr ls))))
+  ;; Electric pair
+  (electric-pair-mode 1)
 
-;; スタートアップメッセージを表示させない
-(setq inhibit-startup-message 1)
+  ;; Delete selection
+  (delete-selection-mode 1)
 
-;; ターミナルで起動したときにメニューを表示しない
-(if (eq window-system 'x)
-    (menu-bar-mode 1) (menu-bar-mode 0))
-(menu-bar-mode nil)
+  ;; Save cursor position
+  (save-place-mode 1)
 
-;; scratchの初期メッセージ消去
-(setq initial-scratch-message "")
+  ;; Recent files
+  (recentf-mode 1)
+  (setq recentf-max-saved-items 200
+        recentf-exclude '("/tmp/" "/ssh:" "/sudo:"))
 
-;;バックアップファイルを作らない
-(setq backup-inhibited t)
+  ;; Save history
+  (savehist-mode 1)
+  (setq history-length 1000
+        savehist-save-minibuffer-history t)
 
-;; 終了時にオートセーブファイルを消す
-(setq delete-auto-save-files t)
+  ;; Disable customize saving to init.el
+  (setq custom-file (locate-user-emacs-file "custom.el"))
 
-;; elscreen（上部タブ）
-(require 'elscreen)
-(elscreen-start)
-(global-set-key "\C-l" 'elscreen-next)
-(global-set-key (kbd "s-t") 'elscreen-create)
-(global-set-key "\C-r" 'elscreen-previous)
-(global-set-key (kbd "s-d") 'elscreen-kill)
-(set-face-attribute 'elscreen-tab-background-face nil
-                    :background "grey10"
-                    :foreground "grey90")
-(set-face-attribute 'elscreen-tab-control-face nil
-                    :background "grey20"
-                    :foreground "grey90")
-(set-face-attribute 'elscreen-tab-current-screen-face nil
-                    :background "grey20"
-                    :foreground "grey90")
-(set-face-attribute 'elscreen-tab-other-screen-face nil
-                    :background "grey30"
-                    :foreground "grey60")
-;;; [X]を表示しない
-(setq elscreen-tab-display-kill-screen nil)
-;;; [<->]を表示しない
-(setq elscreen-tab-display-control nil)
-;;; タブに表示させる内容を決定
-(setq elscreen-buffer-to-nickname-alist
-      '(("^dired-mode$" .
-         (lambda ()
-           (format "Dired(%s)" dired-directory)))
-        ("^Info-mode$" .
-         (lambda ()
-           (format "Info(%s)" (file-name-nondirectory Info-current-file))))
-        ("^mew-draft-mode$" .
-         (lambda ()
-           (format "Mew(%s)" (buffer-name (current-buffer)))))
-        ("^mew-" . "Mew")
-        ("^irchat-" . "IRChat")
-        ("^liece-" . "Liece")
-        ("^lookup-" . "Lookup")))
-(setq elscreen-mode-to-nickname-alist
-      '(("[Ss]hell" . "shell")
-        ("compilation" . "compile")
-        ("-telnet" . "telnet")
-        ("dict" . "OnlineDict")
-        ("*WL:Message*" . "Wanderlust")))
+  ;; Unique buffer names
+  (setq uniquify-buffer-name-style 'forward)
 
-;; neotree（サイドバー）
-(require 'neotree)
-(global-set-key "\C-o" 'neotree-toggle)
+  ;; Tabs (Emacs 27+)
+  (setq tab-bar-show 1)
 
-;; スクロールは1行ごとに
-(setq mouse-wheel-scroll-amount '(1 ((shift) . 5)))
+  ;; Whitespace
+  (setq-default show-trailing-whitespace nil)
+  (add-hook 'before-save-hook #'delete-trailing-whitespace))
 
-;; スクロールの加速をやめる
-(setq mouse-wheel-progressive-speed nil)
+;; ============================================================================
+;; Daemon / Server Settings
+;; ============================================================================
 
-;; bufferの最後でカーソルを動かそうとしても音をならなくする
-(defun next-line (arg)
-  (interactive "p")
-  (condition-case nil
-      (line-move arg)
-    (end-of-buffer)))
+(leaf *daemon-settings
+  :config
+  ;; Frame setup for daemon mode
+  (defun my/setup-frame (frame)
+    "Setup FRAME when created from daemon."
+    (with-selected-frame frame
+      (when (display-graphic-p frame)
+        ;; Font settings (adjust to your preference)
+        (set-face-attribute 'default nil
+                            :family "HackGen Console NF"
+                            :height 140)
+        ;; Japanese font
+        (set-fontset-font t 'japanese-jisx0208
+                          (font-spec :family "HackGen Console NF")))))
 
-;; エラー音をならなくする
-(setq ring-bell-function 'ignore)
+  (if (daemonp)
+      (add-hook 'after-make-frame-functions #'my/setup-frame)
+    (my/setup-frame (selected-frame)))
 
-;; スクロールは1行ごとに
-(setq mouse-wheel-scroll-amount '(1 ((shift) . 5)))
+  ;; Clipboard integration
+  (setq select-enable-clipboard t
+        select-enable-primary t))
 
-;; スクロールの加速をやめる
-(setq mouse-wheel-progressive-speed nil)
+;; ============================================================================
+;; UI / Theme
+;; ============================================================================
 
-;; bufferの最後でカーソルを動かそうとしても音をならなくする
-(defun next-line (arg)
-  (interactive "p")
-  (condition-case nil
-      (line-move arg)
-    (end-of-buffer)))
+(leaf doom-themes
+  :ensure t
+  :config
+  (load-theme 'doom-one t)
+  (doom-themes-visual-bell-config)
+  (doom-themes-org-config))
 
-;; エラー音をならなくする
-(setq ring-bell-function 'ignore)
+(leaf doom-modeline
+  :ensure t
+  :hook (after-init-hook . doom-modeline-mode)
+  :setq
+  (doom-modeline-height . 28)
+  (doom-modeline-bar-width . 4)
+  (doom-modeline-icon . t)
+  (doom-modeline-major-mode-icon . t)
+  (doom-modeline-buffer-file-name-style . 'truncate-upto-project)
+  (doom-modeline-buffer-encoding . nil)
+  (doom-modeline-vcs-max-length . 20))
 
-;; golden ratio
-(golden-ratio-mode 1)
-(add-to-list 'golden-ratio-exclude-buffer-names " *NeoTree*")
-
-;; active window move
-(global-set-key (kbd "<C-left>")  'windmove-left)
-(global-set-key (kbd "<C-down>")  'windmove-down)
-(global-set-key (kbd "<C-up>")    'windmove-up)
-(global-set-key (kbd "<C-right>") 'windmove-right)
-
-;; php-mode
-(require 'php-mode)
-
-;; php-mode-hook
-(add-hook 'php-mode-hook
-          (lambda ()
-            (require 'php-completion)
-            (php-completion-mode t)
-            (define-key php-mode-map (kbd "C-o") 'phpcmp-complete)
-            (make-local-variable 'ac-sources)
-            (setq ac-sources '(
-                               ac-source-words-in-same-mode-buffers
-                               ac-source-php-completion
-                               ac-source-filename
-                               ))))
-
-;; web mode
-;; http://web-mode.org/
-;; http://yanmoo.blogspot.jp/2013/06/html5web-mode.html
-(require 'web-mode)
-(add-to-list 'auto-mode-alist '("\\.ctp\\'"   . web-mode))
-(add-to-list 'auto-mode-alist '("\\.html?\\'" . web-mode))
-
-;; web-modeの設定
-(defun web-mode-hook ()
-  (setq web-mode-markup-indent-offset 2)
-  (setq web-mode-css-indent-offset 2)
-  (setq web-mode-code-indent-offset 2)
-  (setq web-mode-engines-alist
-        '(("php"    . "\\.ctp\\'"))
-        )
+(leaf nerd-icons
+  :ensure t
+  :config
+  ;; Run M-x nerd-icons-install-fonts if icons don't display
   )
 
-(add-hook 'web-mode-hook  'web-mode-hook)
+(leaf nerd-icons-dired
+  :ensure t
+  :hook (dired-mode-hook . nerd-icons-dired-mode))
 
-;;;js2-modeの設定
-(require 'js2-mode)
-(add-to-list 'auto-mode-alist '("\\.js\\'" . js2-mode))
-(add-hook 'js2-mode-hook (lambda () (setq js2-basic-offset 2)))
+(leaf nerd-icons-completion
+  :ensure t
+  :after marginalia
+  :config
+  (nerd-icons-completion-mode)
+  (add-hook 'marginalia-mode-hook #'nerd-icons-completion-marginalia-setup))
 
-;; 色の設定
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(web-mode-comment-face ((t (:foreground "#D9333F"))))
- '(web-mode-css-at-rule-face ((t (:foreground "#FF7F00"))))
- '(web-mode-css-pseudo-class-face ((t (:foreground "#FF7F00"))))
- '(web-mode-css-rule-face ((t (:foreground "#A0D8EF"))))
- '(web-mode-doctype-face ((t (:foreground "#82AE46"))))
- '(web-mode-html-attr-name-face ((t (:foreground "#C97586"))))
- '(web-mode-html-attr-value-face ((t (:foreground "#82AE46"))))
- '(web-mode-html-tag-face ((t (:foreground "#E6B422" :weight bold))))
- '(web-mode-server-comment-face ((t (:foreground "#D9333F")))))
+;; ============================================================================
+;; Completion (Vertico + Corfu)
+;; ============================================================================
 
-;; anything settings
-(require 'anything-config)
-(setq anything-enable-shortcuts 'prefix)
-(define-key anything-map (kbd "@") 'anything-select-with-prefix-shortcut)
-(global-set-key (kbd "C-x b") 'anything-mini)
+(leaf vertico
+  :ensure t
+  :hook (after-init-hook . vertico-mode)
+  :setq
+  (vertico-count . 15)
+  (vertico-cycle . t)
+  (vertico-resize . nil))
 
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(package-selected-packages
-   (quote
-    (anything js2-mode zenburn-theme web-mode php-mode elscreen auto-install auto-complete))))
+(leaf orderless
+  :ensure t
+  :setq
+  (completion-styles . '(orderless basic))
+  (completion-category-defaults . nil)
+  (completion-category-overrides . '((file (styles partial-completion)))))
 
+(leaf marginalia
+  :ensure t
+  :hook (after-init-hook . marginalia-mode))
+
+(leaf consult
+  :ensure t
+  :bind
+  (("C-s"     . consult-line)
+   ("C-x b"   . consult-buffer)
+   ("C-x C-r" . consult-recent-file)
+   ("M-g g"   . consult-goto-line)
+   ("M-g M-g" . consult-goto-line)
+   ("M-s r"   . consult-ripgrep)
+   ("M-s f"   . consult-find)
+   ("M-y"     . consult-yank-pop))
+  :setq
+  (consult-async-min-input . 2))
+
+(leaf embark
+  :ensure t
+  :bind
+  (("C-."   . embark-act)
+   ("C-;"   . embark-dwim)
+   ("C-h B" . embark-bindings)))
+
+(leaf embark-consult
+  :ensure t
+  :after embark consult
+  :require t
+  :hook (embark-collect-mode-hook . consult-preview-at-point-mode))
+
+(leaf corfu
+  :ensure t
+  :hook ((after-init-hook . global-corfu-mode)
+         (after-init-hook . corfu-popupinfo-mode))
+  :setq
+  (corfu-auto . t)
+  (corfu-auto-delay . 0.2)
+  (corfu-auto-prefix . 2)
+  (corfu-cycle . t)
+  (corfu-preselect . 'prompt)
+  (corfu-popupinfo-delay . '(0.5 . 0.2)))
+
+(leaf cape
+  :ensure t
+  :config
+  (add-to-list 'completion-at-point-functions #'cape-dabbrev)
+  (add-to-list 'completion-at-point-functions #'cape-file)
+  (add-to-list 'completion-at-point-functions #'cape-keyword))
+
+;; ============================================================================
+;; LSP Mode
+;; ============================================================================
+
+(leaf lsp-mode
+  :ensure t
+  :commands (lsp lsp-deferred)
+  :hook ((go-mode-hook         . lsp-deferred)
+         (go-ts-mode-hook      . lsp-deferred)
+         (typescript-mode-hook . lsp-deferred)
+         (typescript-ts-mode-hook . lsp-deferred)
+         (js-mode-hook         . lsp-deferred)
+         (python-mode-hook     . lsp-deferred)
+         (python-ts-mode-hook  . lsp-deferred)
+         (rust-mode-hook       . lsp-deferred)
+         (rust-ts-mode-hook    . lsp-deferred)
+         (lsp-mode-hook        . lsp-enable-which-key-integration))
+  :init
+  ;; @see https://emacs-lsp.github.io/lsp-mode/page/performance
+  (setq read-process-output-max (* 1024 1024))  ; 1MB
+  :setq
+  (lsp-keymap-prefix . "C-c l")
+  ;; Performance (Centaur Emacs style)
+  (lsp-idle-delay . 0.5)
+  (lsp-log-io . nil)
+  (lsp-keep-workspace-alive . nil)
+  (lsp-enable-file-watchers . nil)           ; Disable for large projects/monorepo
+  (lsp-enable-folding . nil)
+  (lsp-enable-symbol-highlighting . nil)
+  (lsp-enable-text-document-color . nil)
+  (lsp-enable-indentation . nil)             ; Use emacs indentation
+  (lsp-enable-on-type-formatting . nil)
+  ;; Completion
+  (lsp-completion-provider . :none)          ; Use corfu
+  (lsp-completion-show-detail . t)
+  (lsp-completion-show-kind . t)
+  ;; Signature
+  (lsp-signature-auto-activate . nil)
+  (lsp-signature-render-documentation . nil)
+  ;; Headerline
+  (lsp-headerline-breadcrumb-enable . t)
+  (lsp-headerline-breadcrumb-segments . '(project file symbols))
+  ;; Lens
+  (lsp-lens-enable . nil)                    ; Can be slow in large files
+  ;; Semantic tokens
+  (lsp-semantic-tokens-enable . t)
+  ;; Modeline
+  (lsp-modeline-code-actions-enable . nil)
+  (lsp-modeline-diagnostics-enable . nil)
+  (lsp-modeline-workspace-status-enable . nil)
+  :config
+  ;; Register completion function for orderless
+  (defun my/lsp-mode-setup-completion ()
+    (setf (alist-get 'styles (alist-get 'lsp-capf completion-category-defaults))
+          '(orderless)))
+  (add-hook 'lsp-completion-mode-hook #'my/lsp-mode-setup-completion))
+
+(leaf lsp-ui
+  :ensure t
+  :hook (lsp-mode-hook . lsp-ui-mode)
+  :setq
+  ;; Sideline
+  (lsp-ui-sideline-enable . t)
+  (lsp-ui-sideline-show-diagnostics . t)
+  (lsp-ui-sideline-show-hover . nil)
+  (lsp-ui-sideline-show-code-actions . t)
+  (lsp-ui-sideline-delay . 0.2)
+  ;; Peek
+  (lsp-ui-peek-enable . t)
+  (lsp-ui-peek-show-directory . t)
+  ;; Doc - disable by default (can be slow)
+  (lsp-ui-doc-enable . nil)
+  (lsp-ui-doc-delay . 0.5)
+  (lsp-ui-doc-position . 'at-point)
+  (lsp-ui-doc-show-with-cursor . nil)
+  (lsp-ui-doc-show-with-mouse . nil)
+  :bind
+  (lsp-ui-mode-map
+   ("M-." . lsp-ui-peek-find-definitions)
+   ("M-?" . lsp-ui-peek-find-references)
+   ("C-c l d" . lsp-ui-doc-glance)))
+
+;; ============================================================================
+;; Programming Languages
+;; ============================================================================
+
+(leaf go-mode
+  :ensure t
+  :mode "\\.go\\'"
+  :hook
+  (go-mode-hook . (lambda ()
+                    (setq tab-width 4
+                          indent-tabs-mode t)))
+  :config
+  ;; Format and organize imports on save
+  (add-hook 'before-save-hook
+            (lambda ()
+              (when (derived-mode-p 'go-mode 'go-ts-mode)
+                (lsp-format-buffer)
+                (lsp-organize-imports)))))
+
+(leaf yaml-mode
+  :ensure t
+  :mode "\\.ya?ml\\'")
+
+(leaf json-mode
+  :ensure t
+  :mode "\\.json\\'")
+
+(leaf markdown-mode
+  :ensure t
+  :mode (("README\\.md\\'" . gfm-mode)
+         ("\\.md\\'"       . markdown-mode)
+         ("\\.markdown\\'" . markdown-mode))
+  :setq
+  (markdown-command . "pandoc"))
+
+(leaf dockerfile-mode
+  :ensure t
+  :mode "Dockerfile\\'")
+
+(leaf terraform-mode
+  :ensure t
+  :mode "\\.tf\\'")
+
+;; Tree-sitter (Emacs 29+)
+(leaf treesit-auto
+  :ensure t
+  :when (and (>= emacs-major-version 29)
+             (fboundp 'treesit-available-p)
+             (treesit-available-p))
+  :init
+  (setq treesit-auto-install 'prompt)
+  :global-minor-mode global-treesit-auto-mode)
+
+;; ============================================================================
+;; Version Control
+;; ============================================================================
+
+(leaf magit
+  :ensure t
+  :bind
+  (("C-x g"   . magit-status)
+   ("C-x M-g" . magit-dispatch))
+  :setq
+  (magit-display-buffer-function . #'magit-display-buffer-same-window-except-diff-v1))
+
+(leaf git-gutter
+  :ensure t
+  :hook (prog-mode-hook . git-gutter-mode)
+  :setq
+  (git-gutter:update-interval . 0.5)
+  :blackout t)
+
+;; ============================================================================
+;; Project Management
+;; ============================================================================
+
+(leaf project
+  :bind
+  (("C-x p f" . project-find-file)
+   ("C-x p p" . project-switch-project)
+   ("C-x p g" . project-find-regexp)
+   ("C-x p d" . project-dired)))
+
+;; ============================================================================
+;; Syntax Check
+;; ============================================================================
+
+(leaf flycheck
+  :ensure t
+  :hook (prog-mode-hook . flycheck-mode)
+  :setq
+  (flycheck-emacs-lisp-load-path . 'inherit)
+  (flycheck-display-errors-delay . 0.3)
+  :blackout t)
+
+;; ============================================================================
+;; Editing Enhancement
+;; ============================================================================
+
+(leaf which-key
+  :ensure t
+  :hook (after-init-hook . which-key-mode)
+  :setq
+  (which-key-idle-delay . 0.5)
+  (which-key-idle-secondary-delay . 0.1)
+  :blackout t)
+
+(leaf rainbow-delimiters
+  :ensure t
+  :hook (prog-mode-hook . rainbow-delimiters-mode))
+
+(leaf undo-fu
+  :ensure t
+  :bind
+  (("C-/" . undo-fu-only-undo)
+   ("C-?" . undo-fu-only-redo)))
+
+(leaf expand-region
+  :ensure t
+  :bind
+  (("C-=" . er/expand-region)
+   ("C--" . er/contract-region)))
+
+(leaf wgrep
+  :ensure t
+  :setq
+  (wgrep-auto-save-buffer . t)
+  (wgrep-change-readonly-file . t))
+
+;; ============================================================================
+;; Terminal / Shell
+;; ============================================================================
+
+(leaf vterm
+  :ensure t
+  :commands vterm
+  :setq
+  (vterm-max-scrollback . 10000)
+  (vterm-buffer-name-string . "vterm: %s"))
+
+;; ============================================================================
+;; Key Bindings
+;; ============================================================================
+
+(leaf *keybindings
+  :config
+  ;; Window navigation
+  (windmove-default-keybindings)
+
+  ;; Easier window switching
+  (global-set-key (kbd "M-o") 'other-window)
+
+  ;; Buffer operations
+  (global-set-key (kbd "C-x k") 'kill-this-buffer)
+
+  ;; Comment toggle
+  (global-set-key (kbd "C-c /") 'comment-or-uncomment-region))
+
+;; ============================================================================
+;; Local Configuration (if exists)
+;; ============================================================================
+
+(let ((local-config (locate-user-emacs-file "local.el")))
+  (when (file-exists-p local-config)
+    (load local-config)))
+
+(provide 'init)
+;;; init.el ends here
