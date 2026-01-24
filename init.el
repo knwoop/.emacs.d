@@ -59,12 +59,12 @@
         scroll-preserve-screen-position t
         auto-window-vscroll nil)
 
-  ;; Line numbers
-  (setq-default display-line-numbers-width 4)
-  (add-hook 'prog-mode-hook #'display-line-numbers-mode)
+  ;; Line numbers (disabled for minimal UI)
+  ;; (setq-default display-line-numbers-width 4)
+  ;; (add-hook 'prog-mode-hook #'display-line-numbers-mode)
 
-  ;; Highlight current line
-  (global-hl-line-mode 1)
+  ;; Highlight current line (disabled for minimal UI)
+  ;; (global-hl-line-mode 1)
 
   ;; Show matching parentheses
   (show-paren-mode 1)
@@ -113,6 +113,11 @@
   ;; Tabs (Emacs 27+)
   (setq tab-bar-show 1)
 
+  ;; Tab-line (buffer tabs like screenshot)
+  (global-tab-line-mode 1)
+  (setq tab-line-new-button-show nil      ; 新規タブボタン非表示
+        tab-line-close-button-show nil)   ; 閉じるボタン非表示
+
   ;; Whitespace
   (setq-default show-trailing-whitespace nil)
   (add-hook 'before-save-hook #'delete-trailing-whitespace))
@@ -138,11 +143,35 @@
 
   (if (daemonp)
       (add-hook 'after-make-frame-functions #'my/setup-frame)
-    (my/setup-frame (selected-frame)))
+    (my/setup-frame (selected-frame))))
 
-  ;; Clipboard integration
+;; ============================================================================
+;; Clipboard (macOS + tmux + terminal)
+;; ============================================================================
+
+(leaf *clipboard
+  :config
+  ;; GUI: use default clipboard integration
   (setq select-enable-clipboard t
-        select-enable-primary t))
+        select-enable-primary t)
+
+  ;; macOS Terminal/tmux: use pbcopy/pbpaste directly
+  (when (eq system-type 'darwin)
+    (defun my/copy-to-osx (text &optional push)
+      "Copy TEXT to macOS clipboard via pbcopy."
+      (let ((process-connection-type nil))
+        (let ((proc (start-process "pbcopy" nil "pbcopy")))
+          (process-send-string proc text)
+          (process-send-eof proc))))
+
+    (defun my/paste-from-osx ()
+      "Paste from macOS clipboard via pbpaste."
+      (shell-command-to-string "pbpaste"))
+
+    ;; Only use pbcopy/pbpaste in terminal (not GUI)
+    (unless (display-graphic-p)
+      (setq interprogram-cut-function #'my/copy-to-osx
+            interprogram-paste-function #'my/paste-from-osx))))
 
 ;; ============================================================================
 ;; UI / Theme
@@ -151,7 +180,7 @@
 (leaf doom-themes
   :ensure t
   :config
-  (load-theme 'doom-one t)
+  (load-theme 'doom-molokai t)
   (doom-themes-visual-bell-config)
   (doom-themes-org-config))
 
@@ -159,30 +188,18 @@
   :ensure t
   :hook (after-init-hook . doom-modeline-mode)
   :setq
-  (doom-modeline-height . 28)
-  (doom-modeline-bar-width . 4)
-  (doom-modeline-icon . t)
-  (doom-modeline-major-mode-icon . t)
-  (doom-modeline-buffer-file-name-style . 'truncate-upto-project)
-  (doom-modeline-buffer-encoding . nil)
+  (doom-modeline-height . 25)
+  (doom-modeline-bar-width . 3)
+  (doom-modeline-icon . nil)              ; アイコン無効
+  (doom-modeline-major-mode-icon . nil)   ; メジャーモードアイコン無効
+  (doom-modeline-buffer-file-name-style . 'file-name)  ; ファイル名のみ
+  (doom-modeline-buffer-encoding . nil)   ; エンコーディング非表示
   (doom-modeline-vcs-max-length . 20))
 
-(leaf nerd-icons
-  :ensure t
-  :config
-  ;; Run M-x nerd-icons-install-fonts if icons don't display
-  )
-
-(leaf nerd-icons-dired
-  :ensure t
-  :hook (dired-mode-hook . nerd-icons-dired-mode))
-
-(leaf nerd-icons-completion
-  :ensure t
-  :after marginalia
-  :config
-  (nerd-icons-completion-mode)
-  (add-hook 'marginalia-mode-hook #'nerd-icons-completion-marginalia-setup))
+;; Icons (disabled for minimal UI)
+;; Uncomment if you want icons:
+;; (leaf nerd-icons :ensure t)
+;; (leaf nerd-icons-dired :ensure t :hook (dired-mode-hook . nerd-icons-dired-mode))
 
 ;; ============================================================================
 ;; Completion (Vertico + Corfu)
@@ -454,9 +471,22 @@
 
 (leaf expand-region
   :ensure t
+  :commands er/expand-region er/contract-region
   :bind
-  (("C-=" . er/expand-region)
-   ("C--" . er/contract-region)))
+  (("C--" . er/contract-region))
+  :init
+  ;; Smart C-SPC: first press sets mark, subsequent presses expand region
+  (defun my/set-mark-or-expand-region ()
+    "If mark is not active, set mark. Otherwise, expand region."
+    (interactive)
+    (if (eq last-command this-command)
+        (er/expand-region 1)
+      (set-mark-command nil)))
+  (global-set-key (kbd "C-SPC") 'my/set-mark-or-expand-region)
+  (global-set-key (kbd "C-@") 'my/set-mark-or-expand-region)  ; Terminal
+  :config
+  (setq expand-region-contract-fast-key "-"
+        expand-region-reset-fast-key "0"))
 
 (leaf wgrep
   :ensure t
