@@ -85,9 +85,6 @@
   (setq-default indent-tabs-mode nil
                 tab-width 4)
 
-  ;; Disable electric indent (causes issues in Go)
-  (electric-indent-mode -1)
-
   ;; Electric pair
   (electric-pair-mode 1)
 
@@ -315,7 +312,7 @@
   (lsp-enable-folding . nil)
   (lsp-enable-symbol-highlighting . nil)
   (lsp-enable-text-document-color . nil)
-  (lsp-enable-indentation . nil)             ; Use emacs indentation
+  (lsp-enable-indentation . nil)             ; Use mode's own indentation
   (lsp-enable-on-type-formatting . nil)
   ;; Completion
   (lsp-completion-provider . :none)          ; Use corfu
@@ -373,12 +370,12 @@
 
 ;; go-ts-mode (Emacs 29+ built-in, tree-sitter based)
 (leaf go-ts-mode
+  :init
+  (setq go-ts-mode-indent-offset 4)
   :hook
   (go-ts-mode-hook . (lambda ()
                        (setq tab-width 4
-                             indent-tabs-mode t)
-                       ;; Disable electric-indent (causes double indent)
-                       (electric-indent-local-mode -1)))
+                             indent-tabs-mode t)))
   :config
   ;; Format and organize imports on save
   (add-hook 'before-save-hook
@@ -395,8 +392,7 @@
   :hook
   (go-mode-hook . (lambda ()
                     (setq tab-width 4
-                          indent-tabs-mode t)
-                    (electric-indent-local-mode -1)))
+                          indent-tabs-mode t)))
   :config
   (add-hook 'before-save-hook
             (lambda ()
