@@ -216,6 +216,18 @@
   (vertico-cycle . t)
   (vertico-resize . nil))
 
+;; Directory navigation for vertico (DEL deletes directory)
+(leaf vertico-directory
+  :after vertico
+  :ensure nil  ; included in vertico
+  :require t
+  :bind
+  (vertico-map
+   ("RET"   . vertico-directory-enter)
+   ("DEL"   . vertico-directory-delete-char)
+   ("M-DEL" . vertico-directory-delete-word))
+  :hook (rfn-eshadow-update-overlay-hook . vertico-directory-tidy))
+
 (leaf orderless
   :ensure t
   :setq
