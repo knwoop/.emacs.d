@@ -743,6 +743,7 @@
   :hook (after-init-hook . yas-global-mode)
   :bind
   (yas-minor-mode-map
+   ("C-c y e" . yas-expand)
    ("C-c y n" . yas-new-snippet)
    ("C-c y v" . yas-visit-snippet-file)
    ("C-c y i" . yas-insert-snippet))
