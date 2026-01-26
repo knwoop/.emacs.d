@@ -700,11 +700,31 @@
 (leaf flycheck
   :ensure t
   :hook (prog-mode-hook . flycheck-mode)
+  :bind
+  (("M-g r"   . flycheck-list-errors)
+   ("C-c e n" . flycheck-next-error)
+   ("C-c e p" . flycheck-previous-error))
   :setq
   (flycheck-emacs-lisp-load-path . 'inherit)
   (flycheck-display-errors-delay . 0.3)
+  ;; Highlight the whole line for errors
+  (flycheck-highlighting-mode . 'lines)
+  ;; Show error indicators in the left fringe
+  (flycheck-indication-mode . 'left-fringe)
   :blackout t
   :config
+  ;; Customize error faces for better visibility
+  (set-face-attribute 'flycheck-error nil
+                      :foreground "red"
+                      :weight 'bold
+                      :underline '(:style wave :color "red"))
+  (set-face-attribute 'flycheck-warning nil
+                      :foreground "yellow"
+                      :weight 'bold
+                      :underline '(:style wave :color "yellow"))
+  (set-face-attribute 'flycheck-info nil
+                      :underline '(:style wave :color "green"))
+
   ;; Use project-local eslint for JavaScript/TypeScript
   (defun my/use-local-eslint ()
     "Use local eslint from node_modules if available."
@@ -717,6 +737,15 @@
         (setq-local flycheck-javascript-eslint-executable eslint))))
 
   (add-hook 'flycheck-mode-hook #'my/use-local-eslint))
+
+;; ============================================================================
+;; Compilation
+;; ============================================================================
+
+(leaf compile
+  :bind
+  (compilation-mode-map
+   ("q" . quit-window)))
 
 ;; ============================================================================
 ;; Editing Enhancement
