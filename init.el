@@ -647,6 +647,17 @@
   :ensure t
   :mode "\\.tf\\'")
 
+(leaf protobuf-mode
+  :ensure t
+  :mode "\\.proto\\'"
+  :hook
+  (protobuf-mode-hook . lsp-deferred)
+  (protobuf-mode-hook . (lambda ()
+                          (setq-local c-basic-offset 2)
+                          (setq-local tab-width 2)
+                          (setq-local indent-tabs-mode nil)
+                          (c-set-offset 'inclass 2))))
+
 ;; ============================================================================
 ;; Version Control
 ;; ============================================================================
