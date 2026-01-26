@@ -445,6 +445,39 @@
                 (lsp-format-buffer)
                 (lsp-organize-imports)))))
 
+;; gotest - Go test runner integration
+(leaf gotest
+  :ensure t
+  :after go-ts-mode
+  :bind
+  ;; Keybindings for go-ts-mode (tree-sitter based)
+  (go-ts-mode-map
+   ("C-c t t" . go-test-current-test)
+   ("C-c t f" . go-test-current-file)
+   ("C-c t p" . go-test-current-project)
+   ("C-c t b" . go-test-current-benchmark)
+   ("C-c t c" . go-test-current-coverage)
+   ("C-c t x" . go-run))
+  ;; Keybindings for go-mode (fallback for older Emacs)
+  (go-mode-map
+   ("C-c t t" . go-test-current-test)
+   ("C-c t f" . go-test-current-file)
+   ("C-c t p" . go-test-current-project)
+   ("C-c t b" . go-test-current-benchmark)
+   ("C-c t c" . go-test-current-coverage)
+   ("C-c t x" . go-run))
+  :setq
+  ;; Enable verbose output (-v) when running tests
+  (go-test-verbose . t))
+
+;; go-tag - Manage struct field tags
+(leaf go-tag
+  :ensure t
+  :bind
+  (go-ts-mode-map
+   ("C-c t a" . go-tag-add)
+   ("C-c t r" . go-tag-remove)))
+
 ;; ----------------------------------------------------------------------------
 ;; TypeScript / JavaScript
 ;; ----------------------------------------------------------------------------
