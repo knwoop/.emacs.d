@@ -775,6 +775,12 @@
   (("C-a" . mwim-beginning-of-code-or-line)
    ("C-e" . mwim-end-of-code-or-line)))
 
+(leaf avy
+  :ensure t
+  :bind
+  (("M-j"   . avy-goto-char-timer)
+   ("M-g l" . avy-goto-line)))
+
 (leaf expand-region
   :ensure t
   :commands er/expand-region er/contract-region
