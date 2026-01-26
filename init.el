@@ -450,27 +450,27 @@
 ;; gotest - Go test runner integration
 (leaf gotest
   :ensure t
-  :after go-ts-mode
-  :bind
-  ;; Keybindings for go-ts-mode (tree-sitter based)
-  (go-ts-mode-map
-   ("C-c t t" . go-test-current-test)
-   ("C-c t f" . go-test-current-file)
-   ("C-c t p" . go-test-current-project)
-   ("C-c t b" . go-test-current-benchmark)
-   ("C-c t c" . go-test-current-coverage)
-   ("C-c t x" . go-run))
-  ;; Keybindings for go-mode (fallback for older Emacs)
-  (go-mode-map
-   ("C-c t t" . go-test-current-test)
-   ("C-c t f" . go-test-current-file)
-   ("C-c t p" . go-test-current-project)
-   ("C-c t b" . go-test-current-benchmark)
-   ("C-c t c" . go-test-current-coverage)
-   ("C-c t x" . go-run))
+  :commands (go-test-current-test
+             go-test-current-file
+             go-test-current-project
+             go-test-current-benchmark
+             go-test-current-coverage
+             go-run)
+  :init
+  (defun my/go-test-keybindings ()
+    "Set up keybindings for gotest."
+    (local-set-key (kbd "C-c t t") #'go-test-current-test)
+    (local-set-key (kbd "C-c t f") #'go-test-current-file)
+    (local-set-key (kbd "C-c t p") #'go-test-current-project)
+    (local-set-key (kbd "C-c t b") #'go-test-current-benchmark)
+    (local-set-key (kbd "C-c t c") #'go-test-current-coverage)
+    (local-set-key (kbd "C-c t x") #'go-run))
+  :hook
+  ((go-mode-hook go-ts-mode-hook) . my/go-test-keybindings)
   :setq
-  ;; Enable verbose output (-v) when running tests
-  (go-test-verbose . t))
+  (go-test-verbose . t)
+  :config
+  (define-key go-test-mode-map (kbd "q") #'quit-window))
 
 ;; go-tag - Manage struct field tags
 (leaf go-tag
