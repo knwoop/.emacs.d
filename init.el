@@ -909,12 +909,15 @@
 
   ;; Copy file path to clipboard
   (defun my/copy-file-path ()
-    "Copy the current buffer's file path to clipboard."
+    "Copy the current buffer's file path relative to project root."
     (interactive)
     (if-let ((path (buffer-file-name)))
-        (progn
-          (kill-new path)
-          (message "Copied: %s" path))
+        (let* ((root (or (when (project-current)
+                           (project-root (project-current)))
+                         default-directory))
+               (relative (file-relative-name path root)))
+          (kill-new relative)
+          (message "Copied: %s" relative))
       (message "Buffer is not visiting a file")))
 
   (defun my/copy-file-name ()
