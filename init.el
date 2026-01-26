@@ -907,6 +907,28 @@
   ;; Buffer operations
   (global-set-key (kbd "C-x k") 'kill-this-buffer)
 
+  ;; Copy file path to clipboard
+  (defun my/copy-file-path ()
+    "Copy the current buffer's file path to clipboard."
+    (interactive)
+    (if-let ((path (buffer-file-name)))
+        (progn
+          (kill-new path)
+          (message "Copied: %s" path))
+      (message "Buffer is not visiting a file")))
+
+  (defun my/copy-file-name ()
+    "Copy the current buffer's file name to clipboard."
+    (interactive)
+    (if-let ((path (buffer-file-name)))
+        (let ((name (file-name-nondirectory path)))
+          (kill-new name)
+          (message "Copied: %s" name))
+      (message "Buffer is not visiting a file")))
+
+  (global-set-key (kbd "C-c f p") 'my/copy-file-path)
+  (global-set-key (kbd "C-c f n") 'my/copy-file-name)
+
   ;; Comment toggle
   (global-set-key (kbd "C-c /") 'comment-or-uncomment-region)
 
