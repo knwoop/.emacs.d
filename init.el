@@ -350,6 +350,8 @@
   (lsp-lens-enable . nil)
   ;; Semantic tokens
   (lsp-semantic-tokens-enable . t)
+  ;; Diagnostics (use flymake instead of flycheck)
+  (lsp-diagnostics-provider . :flymake)
   ;; Modeline
   (lsp-modeline-code-actions-enable . nil)
   (lsp-modeline-diagnostics-enable . nil)
@@ -697,46 +699,24 @@
 ;; Syntax Check
 ;; ============================================================================
 
-(leaf flycheck
-  :ensure t
-  :hook (prog-mode-hook . flycheck-mode)
+(leaf flymake
+  :hook (prog-mode-hook . flymake-mode)
   :bind
-  (("M-g r"   . flycheck-list-errors)
-   ("C-c e n" . flycheck-next-error)
-   ("C-c e p" . flycheck-previous-error))
-  :setq
-  (flycheck-emacs-lisp-load-path . 'inherit)
-  (flycheck-display-errors-delay . 0.3)
-  ;; Highlight the whole line for errors
-  (flycheck-highlighting-mode . 'lines)
-  ;; Show error indicators in the left fringe
-  (flycheck-indication-mode . 'left-fringe)
-  :blackout t
+  (("M-g f"   . consult-flymake)
+   ("C-c e n" . flymake-goto-next-error)
+   ("C-c e p" . flymake-goto-prev-error))
   :config
   ;; Customize error faces for better visibility
-  (set-face-attribute 'flycheck-error nil
+  (set-face-attribute 'flymake-error nil
                       :foreground "red"
                       :weight 'bold
                       :underline '(:style wave :color "red"))
-  (set-face-attribute 'flycheck-warning nil
+  (set-face-attribute 'flymake-warning nil
                       :foreground "yellow"
                       :weight 'bold
                       :underline '(:style wave :color "yellow"))
-  (set-face-attribute 'flycheck-info nil
-                      :underline '(:style wave :color "green"))
-
-  ;; Use project-local eslint for JavaScript/TypeScript
-  (defun my/use-local-eslint ()
-    "Use local eslint from node_modules if available."
-    (let* ((root (locate-dominating-file
-                  (or (buffer-file-name) default-directory)
-                  "node_modules"))
-           (eslint (and root
-                        (expand-file-name "node_modules/.bin/eslint" root))))
-      (when (and eslint (file-executable-p eslint))
-        (setq-local flycheck-javascript-eslint-executable eslint))))
-
-  (add-hook 'flycheck-mode-hook #'my/use-local-eslint))
+  (set-face-attribute 'flymake-note nil
+                      :underline '(:style wave :color "green")))
 
 ;; ============================================================================
 ;; Compilation
