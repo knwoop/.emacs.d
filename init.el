@@ -4,11 +4,6 @@
 ;; Centaur Emacs inspired minimal configuration.
 ;; Uses leaf.el for package management.
 ;; Designed for emacs --daemon usage.
-;;
-;; First-time setup for Copilot:
-;;   1. M-x copilot-install-server (install Copilot language server)
-;;   2. M-x copilot-login (authenticate with GitHub)
-;;   3. M-x copilot-diagnose (verify setup)
 
 ;;; Code:
 
@@ -40,8 +35,7 @@
 
 (leaf *basic-settings
   :config
-  ;; User info
-  (setq user-full-name "Kenta"
+  (setq user-full-name "knwoop"
         user-mail-address "")
 
   ;; UTF-8
@@ -58,20 +52,13 @@
         use-short-answers t
         confirm-kill-emacs 'y-or-n-p)
 
-  ;; Better scrolling
+  ;; Scrolling
   (setq scroll-margin 3
         scroll-conservatively 101
         scroll-preserve-screen-position t
         auto-window-vscroll nil)
 
-  ;; Line numbers (disabled for minimal UI)
-  ;; (setq-default display-line-numbers-width 4)
-  ;; (add-hook 'prog-mode-hook #'display-line-numbers-mode)
-
-  ;; Highlight current line (disabled for minimal UI)
-  ;; (global-hl-line-mode 1)
-
-  ;; Show matching parentheses
+  ;; Parentheses
   (show-paren-mode 1)
   (setq show-paren-delay 0)
 
@@ -90,13 +77,9 @@
   (setq-default indent-tabs-mode nil
                 tab-width 4)
 
-  ;; Electric pair
+  ;; Editing
   (electric-pair-mode 1)
-
-  ;; Delete selection
   (delete-selection-mode 1)
-
-  ;; Save cursor position
   (save-place-mode 1)
 
   ;; Recent files
@@ -104,21 +87,17 @@
   (setq recentf-max-saved-items 200
         recentf-exclude '("/tmp/" "/ssh:" "/sudo:"))
 
-  ;; Save history
+  ;; History
   (savehist-mode 1)
   (setq history-length 1000
         savehist-save-minibuffer-history t)
 
-  ;; Disable customize saving to init.el
+  ;; Misc
   (setq custom-file (locate-user-emacs-file "custom.el"))
-
-  ;; Unique buffer names
   (setq uniquify-buffer-name-style 'forward)
 
-  ;; Tabs (Emacs 27+)
+  ;; Tabs
   (setq tab-bar-show 1)
-
-  ;; Tab-line (buffer tabs)
   (global-tab-line-mode 1)
   (setq tab-line-new-button-show nil
         tab-line-close-button-show nil)
@@ -133,16 +112,13 @@
 
 (leaf *daemon-settings
   :config
-  ;; Frame setup for daemon mode
   (defun my/setup-frame (frame)
     "Setup FRAME when created from daemon."
     (with-selected-frame frame
       (when (display-graphic-p frame)
-        ;; Font settings (adjust to your preference)
         (set-face-attribute 'default nil
                             :family "HackGen Console NF"
                             :height 140)
-        ;; Japanese font
         (set-fontset-font t 'japanese-jisx0208
                           (font-spec :family "HackGen Console NF")))))
 
@@ -151,16 +127,14 @@
     (my/setup-frame (selected-frame))))
 
 ;; ============================================================================
-;; Clipboard (macOS + tmux + terminal)
+;; Clipboard (macOS)
 ;; ============================================================================
 
 (leaf *clipboard
   :config
-  ;; GUI: use default clipboard integration
   (setq select-enable-clipboard t
         select-enable-primary t)
 
-  ;; macOS Terminal/tmux: use pbcopy/pbpaste directly
   (when (eq system-type 'darwin)
     (defun my/copy-to-osx (text &optional push)
       "Copy TEXT to macOS clipboard via pbcopy."
@@ -173,7 +147,6 @@
       "Paste from macOS clipboard via pbpaste."
       (shell-command-to-string "pbpaste"))
 
-    ;; Only use pbcopy/pbpaste in terminal (not GUI)
     (unless (display-graphic-p)
       (setq interprogram-cut-function #'my/copy-to-osx
             interprogram-paste-function #'my/paste-from-osx))))
@@ -201,11 +174,6 @@
   (doom-modeline-buffer-encoding . nil)
   (doom-modeline-vcs-max-length . 20))
 
-;; Icons (disabled for minimal UI)
-;; Uncomment if you want icons:
-;; (leaf nerd-icons :ensure t)
-;; (leaf nerd-icons-dired :ensure t :hook (dired-mode-hook . nerd-icons-dired-mode))
-
 ;; ============================================================================
 ;; Completion (Vertico + Corfu)
 ;; ============================================================================
@@ -218,7 +186,6 @@
   (vertico-cycle . t)
   (vertico-resize . nil))
 
-;; Directory navigation for vertico (DEL deletes directory)
 (leaf vertico-directory
   :after vertico
   :ensure nil
@@ -279,7 +246,6 @@
   (corfu-preselect . 'prompt)
   :config
   (global-corfu-mode 1)
-  ;; Enable corfu in minibuffer for M-: etc
   (defun corfu-enable-in-minibuffer ()
     "Enable Corfu in the minibuffer."
     (when (local-variable-p 'completion-at-point-functions)
@@ -287,7 +253,6 @@
       (corfu-mode 1)))
   (add-hook 'minibuffer-setup-hook #'corfu-enable-in-minibuffer))
 
-;; corfu-terminal: Enable corfu popup in terminal (non-GUI) Emacs
 (leaf corfu-terminal
   :ensure t
   :after corfu
@@ -298,7 +263,6 @@
 (leaf cape
   :ensure t
   :config
-  ;; Add cape backends to end of list (LSP capf takes priority)
   (add-to-list 'completion-at-point-functions #'cape-dabbrev t)
   (add-to-list 'completion-at-point-functions #'cape-file t))
 
@@ -322,11 +286,9 @@
          (lsp-mode-hook        . lsp-completion-mode)
          (lsp-mode-hook        . lsp-enable-which-key-integration))
   :init
-  ;; @see https://emacs-lsp.github.io/lsp-mode/page/performance
   (setq read-process-output-max (* 1024 1024))
   :setq
   (lsp-keymap-prefix . "C-c l")
-  ;; Performance (Centaur Emacs style)
   (lsp-idle-delay . 0.5)
   (lsp-log-io . nil)
   (lsp-keep-workspace-alive . nil)
@@ -336,31 +298,22 @@
   (lsp-enable-text-document-color . nil)
   (lsp-enable-indentation . nil)
   (lsp-enable-on-type-formatting . nil)
-  ;; Completion
   (lsp-completion-provider . :capf)
   (lsp-completion-show-detail . t)
   (lsp-completion-show-kind . t)
-  ;; Signature
   (lsp-signature-auto-activate . nil)
   (lsp-signature-render-documentation . nil)
-  ;; Headerline
   (lsp-headerline-breadcrumb-enable . t)
   (lsp-headerline-breadcrumb-segments . '(project file symbols))
-  ;; Lens
   (lsp-lens-enable . nil)
-  ;; Semantic tokens
   (lsp-semantic-tokens-enable . t)
-  ;; Diagnostics (use flymake instead of flycheck)
   (lsp-diagnostics-provider . :flymake)
-  ;; Modeline
   (lsp-modeline-code-actions-enable . nil)
   (lsp-modeline-diagnostics-enable . nil)
   (lsp-modeline-workspace-status-enable . nil)
-  ;; ESLint integration (reads project's .eslintrc automatically)
   (lsp-eslint-auto-fix-on-save . t)
   (lsp-eslint-run . "onType")
   :config
-  ;; Register completion function for orderless
   (defun my/lsp-mode-setup-completion ()
     (setf (alist-get 'styles (alist-get 'lsp-capf completion-category-defaults))
           '(orderless)))
@@ -370,16 +323,13 @@
   :ensure t
   :hook (lsp-mode-hook . lsp-ui-mode)
   :setq
-  ;; Sideline
   (lsp-ui-sideline-enable . t)
   (lsp-ui-sideline-show-diagnostics . t)
   (lsp-ui-sideline-show-hover . nil)
   (lsp-ui-sideline-show-code-actions . t)
   (lsp-ui-sideline-delay . 0.2)
-  ;; Peek
   (lsp-ui-peek-enable . t)
   (lsp-ui-peek-show-directory . t)
-  ;; Doc - disable by default (can be slow)
   (lsp-ui-doc-enable . nil)
   (lsp-ui-doc-delay . 0.5)
   (lsp-ui-doc-position . 'at-point)
@@ -403,7 +353,6 @@
   :init
   (setq treesit-auto-install 'prompt)
   :config
-  ;; Prefer tree-sitter modes when available
   (treesit-auto-add-to-auto-mode-alist 'all)
   :global-minor-mode global-treesit-auto-mode)
 
@@ -415,7 +364,6 @@
 ;; Go
 ;; ----------------------------------------------------------------------------
 
-;; go-ts-mode (Emacs 29+ built-in, tree-sitter based)
 (leaf go-ts-mode
   :init
   (setq go-ts-mode-indent-offset 4)
@@ -424,14 +372,12 @@
                        (setq tab-width 4
                              indent-tabs-mode t)))
   :config
-  ;; Format and organize imports on save
   (add-hook 'before-save-hook
             (lambda ()
               (when (derived-mode-p 'go-ts-mode)
                 (lsp-format-buffer)
                 (lsp-organize-imports)))))
 
-;; go-mode (fallback for older Emacs or when tree-sitter unavailable)
 (leaf go-mode
   :ensure t
   :unless (and (fboundp 'treesit-available-p) (treesit-available-p))
@@ -447,7 +393,6 @@
                 (lsp-format-buffer)
                 (lsp-organize-imports)))))
 
-;; gotest - Go test runner integration
 (leaf gotest
   :ensure t
   :commands (go-test-current-test
@@ -472,7 +417,6 @@
   :config
   (define-key go-test-mode-map (kbd "q") #'quit-window))
 
-;; go-tag - Manage struct field tags
 (leaf go-tag
   :ensure t
   :bind
@@ -484,7 +428,6 @@
 ;; TypeScript / JavaScript
 ;; ----------------------------------------------------------------------------
 
-;; TypeScript with tree-sitter (Emacs 29+)
 (leaf typescript-ts-mode
   :mode (("\\.ts\\'" . typescript-ts-mode)
          ("\\.mts\\'" . typescript-ts-mode)
@@ -492,13 +435,11 @@
   :init
   (setq typescript-ts-mode-indent-offset 2))
 
-;; TSX with tree-sitter
 (leaf tsx-ts-mode
   :mode "\\.tsx\\'"
   :init
   (setq typescript-ts-mode-indent-offset 2))
 
-;; JavaScript with tree-sitter
 (leaf js-ts-mode
   :mode (("\\.js\\'" . js-ts-mode)
          ("\\.mjs\\'" . js-ts-mode)
@@ -507,8 +448,6 @@
   :init
   (setq js-indent-level 2))
 
-;; Add project-local node_modules/.bin to PATH
-;; This ensures ESLint, Prettier, etc. use project-specific versions
 (leaf add-node-modules-path
   :ensure t
   :hook ((typescript-ts-mode-hook . add-node-modules-path)
@@ -518,46 +457,26 @@
          (json-ts-mode-hook . add-node-modules-path)
          (json-mode-hook . add-node-modules-path)))
 
-;; Auto-formatting with Prettier (respects project's .prettierrc)
-(leaf apheleia
-  :ensure t
-  :hook (after-init-hook . apheleia-global-mode)
-  :config
-  ;; Use npx to run project-local prettier
-  (setf (alist-get 'prettier apheleia-formatters)
-        '("npx" "prettier" "--stdin-filepath" filepath))
-  ;; Use prettier for TypeScript/JavaScript files
-  (setf (alist-get 'typescript-ts-mode apheleia-mode-alist) '(prettier))
-  (setf (alist-get 'tsx-ts-mode apheleia-mode-alist) '(prettier))
-  (setf (alist-get 'js-ts-mode apheleia-mode-alist) '(prettier))
-  (setf (alist-get 'js-mode apheleia-mode-alist) '(prettier))
-  (setf (alist-get 'json-ts-mode apheleia-mode-alist) '(prettier))
-  (setf (alist-get 'json-mode apheleia-mode-alist) '(prettier)))
-
 ;; ----------------------------------------------------------------------------
 ;; Rust
 ;; ----------------------------------------------------------------------------
 
-;; rust-mode (works with or without tree-sitter)
 (leaf rust-mode
   :ensure t
   :mode "\\.rs\\'"
   :setq
   (rust-format-on-save . t)
   :config
-  ;; Format on save with LSP if available
   (add-hook 'before-save-hook
             (lambda ()
               (when (and (derived-mode-p 'rust-mode)
                          (bound-and-true-p lsp-mode))
                 (lsp-format-buffer)))))
 
-;; Cargo integration
 (leaf cargo
   :ensure t
   :hook (rust-mode-hook . cargo-minor-mode))
 
-;; Cargo keybindings (after cargo is loaded)
 (with-eval-after-load 'cargo
   (define-key cargo-minor-mode-map (kbd "C-c C-c C-b") #'cargo-process-build)
   (define-key cargo-minor-mode-map (kbd "C-c C-c C-r") #'cargo-process-run)
@@ -569,23 +488,19 @@
 ;; Python
 ;; ----------------------------------------------------------------------------
 
-;; python-ts-mode (Emacs 29+ built-in, tree-sitter based)
 (leaf python
   :mode (("\\.py\\'" . python-ts-mode))
   :init
   (setq python-indent-offset 4)
   :config
-  ;; Use ipython if available
   (when (executable-find "ipython")
     (setq python-shell-interpreter "ipython"
           python-shell-interpreter-args "-i --simple-prompt")))
 
-;; Virtual environment support
 (leaf pyvenv
   :ensure t
   :hook (python-ts-mode-hook . pyvenv-tracking-mode)
   :config
-  ;; Auto-activate venv if .venv or venv directory exists
   (defun my/auto-activate-venv ()
     "Automatically activate Python virtual environment."
     (let* ((root (or (locate-dominating-file default-directory ".venv")
@@ -599,23 +514,6 @@
       (when venv-path
         (pyvenv-activate venv-path))))
   (add-hook 'python-ts-mode-hook #'my/auto-activate-venv))
-
-;; Python formatting with ruff or black (via apheleia)
-(leaf apheleia
-  :after apheleia
-  :config
-  ;; Ruff formatter (fast, recommended)
-  (setf (alist-get 'ruff apheleia-formatters)
-        '("ruff" "format" "--stdin-filename" filepath "-"))
-  ;; Black formatter (alternative)
-  (setf (alist-get 'black apheleia-formatters)
-        '("black" "-"))
-  ;; isort for import sorting
-  (setf (alist-get 'isort apheleia-formatters)
-        '("isort" "--profile" "black" "-"))
-  ;; Use ruff for Python (change to 'black if preferred)
-  (setf (alist-get 'python-ts-mode apheleia-mode-alist) '(ruff))
-  (setf (alist-get 'python-mode apheleia-mode-alist) '(ruff)))
 
 ;; ----------------------------------------------------------------------------
 ;; Other Languages
@@ -657,6 +555,29 @@
                           (setq-local tab-width 2)
                           (setq-local indent-tabs-mode nil)
                           (c-set-offset 'inclass 2))))
+
+;; ----------------------------------------------------------------------------
+;; Formatting (apheleia)
+;; ----------------------------------------------------------------------------
+
+(leaf apheleia
+  :ensure t
+  :hook (after-init-hook . apheleia-global-mode)
+  :config
+  ;; Prettier
+  (setf (alist-get 'prettier apheleia-formatters)
+        '("npx" "prettier" "--stdin-filepath" filepath))
+  (setf (alist-get 'typescript-ts-mode apheleia-mode-alist) '(prettier))
+  (setf (alist-get 'tsx-ts-mode apheleia-mode-alist) '(prettier))
+  (setf (alist-get 'js-ts-mode apheleia-mode-alist) '(prettier))
+  (setf (alist-get 'js-mode apheleia-mode-alist) '(prettier))
+  (setf (alist-get 'json-ts-mode apheleia-mode-alist) '(prettier))
+  (setf (alist-get 'json-mode apheleia-mode-alist) '(prettier))
+  ;; Ruff
+  (setf (alist-get 'ruff apheleia-formatters)
+        '("ruff" "format" "--stdin-filename" filepath "-"))
+  (setf (alist-get 'python-ts-mode apheleia-mode-alist) '(ruff))
+  (setf (alist-get 'python-mode apheleia-mode-alist) '(ruff)))
 
 ;; ============================================================================
 ;; Version Control
@@ -707,7 +628,7 @@
    ("C-x p d" . project-dired)))
 
 ;; ============================================================================
-;; Syntax Check
+;; Syntax Check (flymake)
 ;; ============================================================================
 
 (leaf flymake
@@ -717,7 +638,6 @@
    ("C-c e n" . flymake-goto-next-error)
    ("C-c e p" . flymake-goto-prev-error))
   :config
-  ;; Customize error faces for better visibility
   (set-face-attribute 'flymake-error nil
                       :foreground "red"
                       :weight 'bold
@@ -778,7 +698,6 @@
   :bind
   (("C--" . er/contract-region))
   :init
-  ;; Smart C-SPC: first press sets mark, subsequent presses expand region
   (defun my/set-mark-or-expand-region ()
     "If mark is not active, set mark. Otherwise, expand region."
     (interactive)
@@ -816,14 +735,11 @@
 ;; GitHub Copilot
 ;; ============================================================================
 
-;; editorconfig is required by copilot.el
 (leaf editorconfig
   :ensure t
   :hook (after-init-hook . editorconfig-mode)
   :blackout t)
 
-;; Compatibility fix: Define corfu--popup-p if it doesn't exist
-;; copilot.el tries to call this function to check if corfu popup is visible
 (with-eval-after-load 'corfu
   (unless (fboundp 'corfu--popup-p)
     (defun corfu--popup-p ()
@@ -837,41 +753,23 @@
   :hook (prog-mode-hook . copilot-mode)
   :bind
   (copilot-completion-map
-   ;; Accept completion with Tab
    ("<tab>"   . copilot-accept-completion)
    ("TAB"     . copilot-accept-completion)
-   ;; Accept by word/line
    ("C-<tab>" . copilot-accept-completion-by-word)
    ("M-<tab>" . copilot-accept-completion-by-line)
-   ;; Navigate completions
    ("M-n"     . copilot-next-completion)
    ("M-p"     . copilot-previous-completion)
-   ;; Dismiss completion
    ("C-g"     . copilot-clear-overlay))
   :setq
-  ;; Idle delay before showing suggestions (seconds)
   (copilot-idle-delay . 0.1)
-  ;; Max char limit for buffer (completions may not work in large files)
   (copilot-max-char . 1000000)
   :config
-  ;; Disable copilot in certain modes
   (add-to-list 'copilot-disable-predicates
-               (lambda () (member major-mode '(shell-mode
-                                               eshell-mode
-                                               vterm-mode
-                                               term-mode))))
-
-  ;; Disable copilot when mark is active (selecting text)
+               (lambda () (member major-mode '(shell-mode eshell-mode vterm-mode term-mode))))
   (add-to-list 'copilot-disable-predicates
                (lambda () (use-region-p)))
-
-  ;; Disable copilot when corfu popup is visible (avoid conflicts)
   (add-to-list 'copilot-disable-predicates
-               (lambda ()
-                 (and (fboundp 'corfu--popup-p)
-                      (corfu--popup-p))))
-
-  ;; Map tree-sitter modes to copilot language IDs
+               (lambda () (and (fboundp 'corfu--popup-p) (corfu--popup-p))))
   (add-to-list 'copilot-major-mode-alist '("typescript-ts" . "typescript"))
   (add-to-list 'copilot-major-mode-alist '("tsx-ts" . "typescriptreact"))
   (add-to-list 'copilot-major-mode-alist '("js-ts" . "javascript"))
@@ -880,17 +778,6 @@
   (add-to-list 'copilot-major-mode-alist '("rust-ts" . "rust"))
   (add-to-list 'copilot-major-mode-alist '("json-ts" . "json"))
   (add-to-list 'copilot-major-mode-alist '("yaml-ts" . "yaml")))
-
-;; Copilot Chat (optional - for AI chat functionality)
-;; Uncomment if you want chat features
-;; (leaf copilot-chat
-;;   :ensure t
-;;   :after copilot
-;;   :bind
-;;   (("C-c c c" . copilot-chat-display)
-;;    ("C-c c e" . copilot-chat-explain)
-;;    ("C-c c r" . copilot-chat-review)
-;;    ("C-c c f" . copilot-chat-fix)))
 
 ;; ============================================================================
 ;; Terminal / Shell
@@ -909,16 +796,10 @@
 
 (leaf *keybindings
   :config
-  ;; Window navigation
   (windmove-default-keybindings)
-
-  ;; Easier window switching
   (global-set-key (kbd "M-o") 'other-window)
-
-  ;; Buffer operations
   (global-set-key (kbd "C-x k") 'kill-this-buffer)
 
-  ;; Copy file path to clipboard
   (defun my/copy-file-path ()
     "Copy the current buffer's file path relative to project root."
     (interactive)
@@ -942,17 +823,13 @@
 
   (global-set-key (kbd "C-c f p") 'my/copy-file-path)
   (global-set-key (kbd "C-c f n") 'my/copy-file-name)
-
-  ;; Comment toggle
   (global-set-key (kbd "C-c /") 'comment-or-uncomment-region)
-
-  ;; Copilot shortcuts (global)
-  (global-set-key (kbd "C-c c t") 'copilot-mode)           ; Toggle copilot
-  (global-set-key (kbd "C-c c c") 'copilot-complete)       ; Manual completion
-  (global-set-key (kbd "C-c c d") 'copilot-diagnose))      ; Check status
+  (global-set-key (kbd "C-c c t") 'copilot-mode)
+  (global-set-key (kbd "C-c c c") 'copilot-complete)
+  (global-set-key (kbd "C-c c d") 'copilot-diagnose))
 
 ;; ============================================================================
-;; Local Configuration (if exists)
+;; Local Configuration
 ;; ============================================================================
 
 (let ((local-config (locate-user-emacs-file "local.el")))
