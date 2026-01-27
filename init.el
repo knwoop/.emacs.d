@@ -763,6 +763,7 @@
   :setq
   (copilot-idle-delay . 0.1)
   (copilot-max-char . 1000000)
+  (copilot-indent-offset-warning-disable . t)
   :config
   (add-to-list 'copilot-disable-predicates
                (lambda () (member major-mode '(shell-mode eshell-mode vterm-mode term-mode))))
