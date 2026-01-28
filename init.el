@@ -799,7 +799,7 @@
   :config
   (windmove-default-keybindings)
   (global-set-key (kbd "M-o") 'other-window)
-  (global-set-key (kbd "C-x k") 'kill-this-buffer)
+  (global-set-key (kbd "C-x k") 'kill-current-buffer)
 
   (defun my/copy-file-path ()
     "Copy the current buffer's file path relative to project root."
