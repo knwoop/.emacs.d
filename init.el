@@ -556,6 +556,26 @@
                           (setq-local indent-tabs-mode nil)
                           (c-set-offset 'inclass 2))))
 
+(leaf swift-mode
+  :ensure t
+  :mode "\\.swift\\'"
+  :hook (swift-mode-hook . lsp-deferred)
+  :setq
+  (swift-mode:basic-offset . 4))
+
+(leaf lsp-java
+  :ensure t
+  :hook (java-mode-hook . lsp-deferred)
+  :setq
+  (lsp-java-save-actions-organize-imports . t))
+
+(leaf kotlin-mode
+  :ensure t
+  :mode "\\.kt\\'"
+  :hook (kotlin-mode-hook . lsp-deferred)
+  :setq
+  (kotlin-tab-width . 4))
+
 ;; ----------------------------------------------------------------------------
 ;; Formatting (apheleia)
 ;; ----------------------------------------------------------------------------
@@ -778,7 +798,10 @@
   (add-to-list 'copilot-major-mode-alist '("python-ts" . "python"))
   (add-to-list 'copilot-major-mode-alist '("rust-ts" . "rust"))
   (add-to-list 'copilot-major-mode-alist '("json-ts" . "json"))
-  (add-to-list 'copilot-major-mode-alist '("yaml-ts" . "yaml")))
+  (add-to-list 'copilot-major-mode-alist '("yaml-ts" . "yaml"))
+  (add-to-list 'copilot-major-mode-alist '("swift" . "swift"))
+  (add-to-list 'copilot-major-mode-alist '("java" . "java"))
+  (add-to-list 'copilot-major-mode-alist '("kotlin" . "kotlin")))
 
 ;; ============================================================================
 ;; Terminal / Shell
