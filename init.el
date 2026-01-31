@@ -853,6 +853,45 @@
   (global-set-key (kbd "C-c c d") 'copilot-diagnose))
 
 ;; ============================================================================
+;; Quick Note
+;; ============================================================================
+
+(leaf *quick-note
+  :config
+  (defvar my/note-directory "~/notes/")
+
+  (defun my/note-new ()
+    "Create new note with timestamp."
+    (interactive)
+    (unless (file-exists-p my/note-directory)
+      (make-directory my/note-directory t))
+    (let* ((title (read-string "Title: "))
+           (title (if (string-empty-p title) "untitled" title))
+           (slug (string-trim (replace-regexp-in-string "[^a-zA-Z0-9]+" "-" (downcase title)) "-"))
+           (filename (format "%s%s-%s.md"
+                             my/note-directory
+                             (format-time-string "%Y%m%d")
+                             slug)))
+      (find-file filename)
+      (insert (format "# %s\n\nCreated: %s\n\n" title (format-time-string "%Y-%m-%d %H:%M")))))
+
+  (defun my/note-find ()
+    "Find note with consult."
+    (interactive)
+    (let ((default-directory my/note-directory))
+      (consult-find)))
+
+  (defun my/note-search ()
+    "Search note content."
+    (interactive)
+    (consult-ripgrep my/note-directory))
+
+  :bind
+  (("C-c n n" . my/note-new)
+   ("C-c n f" . my/note-find)
+   ("C-c n s" . my/note-search)))
+
+;; ============================================================================
 ;; Local Configuration
 ;; ============================================================================
 
