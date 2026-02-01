@@ -889,9 +889,10 @@
     (insert (format "# %s\n\nCreated: %s\n\n" title (format-time-string "%Y-%m-%d %H:%M")))))
 
 (defun my/note-find ()
-  "Find note with consult."
+  "Find note or directory with consult."
   (interactive)
-  (let ((default-directory my/note-directory))
+  (let ((default-directory my/note-directory)
+        (consult-find-args "find . -not -path '*/.*'"))
     (consult-find)))
 
 (defun my/note-search ()
