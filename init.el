@@ -857,7 +857,7 @@
 ;; ============================================================================
 
 ;; Quick Note
-(defvar my/note-directory "~/notes/")
+(defvar my/note-directory "~/Library/Mobile Documents/com~apple~CloudDocs/Obsidian Vault/")
 
 (defun my/note-categories ()
   "Get list of category directories."
