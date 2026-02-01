@@ -856,40 +856,61 @@
 ;; Quick Note
 ;; ============================================================================
 
-(leaf *quick-note
-  :config
-  (defvar my/note-directory "~/notes/")
+;; Quick Note
+(defvar my/note-directory "~/notes/")
 
-  (defun my/note-new ()
-    "Create new note with timestamp."
-    (interactive)
-    (unless (file-exists-p my/note-directory)
-      (make-directory my/note-directory t))
-    (let* ((title (read-string "Title: "))
-           (title (if (string-empty-p title) "untitled" title))
-           (slug (string-trim (replace-regexp-in-string "[^a-zA-Z0-9]+" "-" (downcase title)) "-"))
-           (filename (format "%s%s-%s.md"
-                             my/note-directory
-                             (format-time-string "%Y%m%d")
-                             slug)))
-      (find-file filename)
-      (insert (format "# %s\n\nCreated: %s\n\n" title (format-time-string "%Y-%m-%d %H:%M")))))
+(defun my/note-categories ()
+  "Get list of category directories."
+  (when (file-directory-p my/note-directory)
+    (seq-filter
+     (lambda (f)
+       (and (file-directory-p (expand-file-name f my/note-directory))
+            (not (string-prefix-p "." f))))
+     (directory-files my/note-directory nil "^[^.]"))))
 
-  (defun my/note-find ()
-    "Find note with consult."
-    (interactive)
-    (let ((default-directory my/note-directory))
-      (consult-find)))
+(defun my/note-new ()
+  "Create new note with timestamp in category."
+  (interactive)
+  (unless (file-exists-p my/note-directory)
+    (make-directory my/note-directory t))
+  (let* ((categories (my/note-categories))
+         (category (completing-read "Category (or new): " categories nil nil))
+         (category (if (string-empty-p category) "inbox" category))
+         (title (read-string "Title: "))
+         (title (if (string-empty-p title) "untitled" title))
+         (slug (string-trim (replace-regexp-in-string "[^a-zA-Z0-9]+" "-" (downcase title)) "-"))
+         (dir (expand-file-name category my/note-directory))
+         (filename (format "%s/%s-%s.md"
+                           dir
+                           (format-time-string "%Y%m%d")
+                           slug)))
+    (make-directory dir t)
+    (find-file filename)
+    (insert (format "# %s\n\nCreated: %s\n\n" title (format-time-string "%Y-%m-%d %H:%M")))))
 
-  (defun my/note-search ()
-    "Search note content."
-    (interactive)
-    (consult-ripgrep my/note-directory))
+(defun my/note-find ()
+  "Find note with consult."
+  (interactive)
+  (let ((default-directory my/note-directory))
+    (consult-find)))
 
-  :bind
-  (("C-c n n" . my/note-new)
-   ("C-c n f" . my/note-find)
-   ("C-c n s" . my/note-search)))
+(defun my/note-search ()
+  "Search note content."
+  (interactive)
+  (consult-ripgrep my/note-directory))
+
+(defun my/note-search-category ()
+  "Search notes in specific category."
+  (interactive)
+  (let* ((categories (my/note-categories))
+         (category (completing-read "Category: " categories nil t))
+         (dir (expand-file-name category my/note-directory)))
+    (consult-ripgrep dir)))
+
+(global-set-key (kbd "C-c n n") #'my/note-new)
+(global-set-key (kbd "C-c n f") #'my/note-find)
+(global-set-key (kbd "C-c n s") #'my/note-search)
+(global-set-key (kbd "C-c n c") #'my/note-search-category)
 
 ;; ============================================================================
 ;; Local Configuration
