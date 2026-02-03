@@ -845,8 +845,40 @@
           (message "Copied: %s" name))
       (message "Buffer is not visiting a file")))
 
+  (defun my/copy-github-link ()
+    "Copy GitHub link for current file and line to clipboard."
+    (interactive)
+    (if-let ((file-path (buffer-file-name)))
+        (let* ((git-root (string-trim (shell-command-to-string "git rev-parse --show-toplevel")))
+               (remote-url (string-trim (shell-command-to-string "git remote get-url origin")))
+               (commit (string-trim (shell-command-to-string "git rev-parse HEAD")))
+               (relative-path (file-relative-name file-path git-root))
+               (line-num (line-number-at-pos))
+               ;; リージョン選択時は範囲を含める
+               (line-spec (if (use-region-p)
+                              (format "L%d-L%d"
+                                      (line-number-at-pos (region-beginning))
+                                      (line-number-at-pos (region-end)))
+                            (format "L%d" line-num)))
+               ;; 各種リモートURL形式を https://github.com/user/repo に変換
+               (github-url (cond
+                            ((string-match "git@github\\.com:\\(.+\\)\\.git" remote-url)
+                             (format "https://github.com/%s" (match-string 1 remote-url)))
+                            ((string-match "ssh://git@github\\.com/\\(.+\\)\\.git" remote-url)
+                             (format "https://github.com/%s" (match-string 1 remote-url)))
+                            ((string-match "https://github\\.com/\\(.+\\)\\.git" remote-url)
+                             (format "https://github.com/%s" (match-string 1 remote-url)))
+                            ((string-match "https://github\\.com/\\(.+\\)" remote-url)
+                             (format "https://github.com/%s" (match-string 1 remote-url)))
+                            (t remote-url)))
+               (full-url (format "%s/blob/%s/%s#%s" github-url commit relative-path line-spec)))
+          (kill-new full-url)
+          (message "Copied: %s" full-url))
+      (message "Buffer is not visiting a file")))
+
   (global-set-key (kbd "C-c f p") 'my/copy-file-path)
   (global-set-key (kbd "C-c f n") 'my/copy-file-name)
+  (global-set-key (kbd "C-c f g") 'my/copy-github-link)
   (global-set-key (kbd "C-c /") 'comment-or-uncomment-region)
   (global-set-key (kbd "C-c c t") 'copilot-mode)
   (global-set-key (kbd "C-c c c") 'copilot-complete)
@@ -891,9 +923,7 @@
 (defun my/note-find ()
   "Find note or directory with consult."
   (interactive)
-  (let ((default-directory my/note-directory)
-        (consult-find-args "find . -not -path '*/.*'"))
-    (consult-find)))
+  (consult-find my/note-directory))
 
 (defun my/note-search ()
   "Search note content."
