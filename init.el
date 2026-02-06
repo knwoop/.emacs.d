@@ -864,7 +864,13 @@
 
   (global-set-key (kbd "C-c f p") 'my/copy-file-path)
   (global-set-key (kbd "C-c f n") 'my/copy-file-name)
+  (defun my/open-downloads ()
+    "Open the Downloads directory in Finder."
+    (interactive)
+    (shell-command "open ~/Downloads"))
+
   (global-set-key (kbd "C-c f o") 'my/open-in-finder)
+  (global-set-key (kbd "C-c f d") 'my/open-downloads)
   (global-set-key (kbd "C-c /") 'comment-or-uncomment-region)
   (global-set-key (kbd "C-c c t") 'copilot-mode)
   (global-set-key (kbd "C-c c c") 'copilot-complete)
