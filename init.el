@@ -854,8 +854,17 @@
           (message "Copied: %s" name))
       (message "Buffer is not visiting a file")))
 
+  (defun my/open-in-finder ()
+    "Open the current file's directory in Finder."
+    (interactive)
+    (let ((dir (if buffer-file-name
+                   (file-name-directory buffer-file-name)
+                 default-directory)))
+      (shell-command (concat "open " (shell-quote-argument dir)))))
+
   (global-set-key (kbd "C-c f p") 'my/copy-file-path)
   (global-set-key (kbd "C-c f n") 'my/copy-file-name)
+  (global-set-key (kbd "C-c f o") 'my/open-in-finder)
   (global-set-key (kbd "C-c /") 'comment-or-uncomment-region)
   (global-set-key (kbd "C-c c t") 'copilot-mode)
   (global-set-key (kbd "C-c c c") 'copilot-complete)
