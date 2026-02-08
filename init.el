@@ -818,6 +818,7 @@
 
 (leaf yagi
   :vc (:url "https://github.com/knwoop/emacs-yagi")
+  :setq ((yagi-model . "anthropic"))
   :global-minor-mode yagi-mode)
 
 ;; ============================================================================
