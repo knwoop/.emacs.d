@@ -791,7 +791,7 @@
    ("C-g"     . copilot-clear-overlay))
   :setq
   (copilot-idle-delay . 0.1)
-  (copilot-max-char . 1000000)
+  (copilot-max-char . 5000000)
   (copilot-indent-offset-warning-disable . t)
   :config
   (add-to-list 'copilot-disable-predicates
