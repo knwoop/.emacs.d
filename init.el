@@ -30,6 +30,15 @@
     (leaf-keywords-init)))
 
 ;; ============================================================================
+;; Environment (exec-path-from-shell)
+;; ============================================================================
+
+(leaf exec-path-from-shell
+  :ensure t
+  :config
+  (exec-path-from-shell-initialize))
+
+;; ============================================================================
 ;; Basic Settings
 ;; ============================================================================
 
@@ -313,6 +322,7 @@
   (lsp-modeline-workspace-status-enable . nil)
   (lsp-eslint-auto-fix-on-save . t)
   (lsp-eslint-run . "onType")
+  (lsp-go-gopls-server-args . '("-remote=auto"))
   :config
   (defun my/lsp-mode-setup-completion ()
     (setf (alist-get 'styles (alist-get 'lsp-capf completion-category-defaults))
