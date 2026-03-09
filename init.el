@@ -73,7 +73,7 @@
 
   ;; Auto revert
   (global-auto-revert-mode 1)
-  (setq auto-revert-interval 1
+  (setq auto-revert-interval 5
         auto-revert-check-vc-info t
         global-auto-revert-non-file-buffers t)
 
@@ -133,7 +133,21 @@
 
   (if (daemonp)
       (add-hook 'after-make-frame-functions #'my/setup-frame)
-    (my/setup-frame (selected-frame))))
+    (my/setup-frame (selected-frame)))
+
+  ;; Replace dired with project-find-file when opening a directory via emacsclient
+  (defun my/server-replace-dired ()
+    "Replace dired with project-find-file when directory opened via emacsclient."
+    (when (derived-mode-p 'dired-mode)
+      (let ((dir default-directory))
+        (run-at-time 0.1 nil
+                     (lambda ()
+                       (let ((default-directory dir))
+                         (if (project-current)
+                             (project-find-file)
+                           (find-file dir))))))))
+
+  (add-hook 'server-switch-hook #'my/server-replace-dired))
 
 ;; ============================================================================
 ;; Clipboard (macOS)
@@ -547,6 +561,13 @@
   :setq
   (markdown-command . "pandoc"))
 
+(leaf markdown-preview-mode
+  :ensure t
+  :setq
+  (markdown-preview-extra-head-elts
+   . '("<script src=\"https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js\"></script>"
+       "<script>mermaid.initialize({startOnLoad:true});</script>")))
+
 (leaf dockerfile-mode
   :ensure t
   :mode "Dockerfile\\'")
@@ -619,7 +640,11 @@
   (("C-x g"   . magit-status)
    ("C-x M-g" . magit-dispatch))
   :setq
-  (magit-display-buffer-function . #'magit-display-buffer-same-window-except-diff-v1))
+  (magit-display-buffer-function . #'magit-display-buffer-same-window-except-diff-v1)
+  :config
+  (magit-add-section-hook 'magit-status-sections-hook
+                          'magit-insert-worktrees
+                          'magit-insert-stashes))
 
 (leaf git-gutter
   :ensure t
@@ -830,6 +855,39 @@
   :vc (:url "https://github.com/knwoop/emacs-yagi")
   :setq ((yagi-model . "anthropic"))
   :global-minor-mode yagi-mode)
+
+;; ============================================================================
+;; Muxac (Claude Code session viewer)
+;; ============================================================================
+
+(defun muxac--sessions ()
+  "Return list of muxac sessions as alist."
+  (let ((output (shell-command-to-string "muxac list --json 2>/dev/null")))
+    (if (string-empty-p output) nil
+      (let ((parsed (json-read-from-string output)))
+        (append (alist-get 'sessions parsed) nil)))))
+
+(defun muxac-list ()
+  "List muxac sessions and switch to the selected one like prefix-s."
+  (interactive)
+  (let* ((sessions (muxac--sessions))
+         (candidates
+          (mapcar (lambda (s)
+                    (let-alist s
+                      (cons (format "%-10s %-30s %s" .status .name .directory) s)))
+                  sessions))
+         (selected (completing-read "muxac session: " candidates nil t)))
+    (when-let ((session (cdr (assoc selected candidates))))
+      (let-alist session
+        (unless (zerop (call-process "tmux" nil nil nil "has-session" "-t" .name))
+          (call-process "tmux" nil nil nil
+                        "new-session" "-d" "-s" .name
+                        (format "muxac attach --name %s --dir %s"
+                                (shell-quote-argument .name)
+                                (shell-quote-argument .directory))))
+        (call-process "tmux" nil nil nil "switch-client" "-t" .name)))))
+
+(global-set-key (kbd "C-c m l") #'muxac-list)
 
 ;; ============================================================================
 ;; Terminal / Shell
