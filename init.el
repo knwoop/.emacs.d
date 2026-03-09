@@ -563,10 +563,16 @@
 
 (leaf markdown-preview-mode
   :ensure t
-  :setq
-  (markdown-preview-extra-head-elts
-   . '("<script src=\"https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js\"></script>"
-       "<script>mermaid.initialize({startOnLoad:true});</script>")))
+  :config
+  (setq markdown-preview-stylesheets
+        '("https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.8.1/github-markdown.min.css"
+          "<style>body{box-sizing:border-box;min-width:200px;max-width:980px;margin:0 auto;padding:45px;}</style>"))
+  (setq markdown-preview-javascript
+        '("https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"))
+  (setq markdown-preview-script-oninit
+        "mermaid.initialize({startOnLoad:false});")
+  (setq markdown-preview-script-onupdate
+        "var pres=document.querySelectorAll('pre.mermaid');pres.forEach(function(pre){var code=pre.querySelector('code');var text=code?code.textContent:pre.textContent;var div=document.createElement('div');div.className='mermaid';div.textContent=text;pre.parentNode.replaceChild(div,pre);});if(pres.length>0){mermaid.run();}"))
 
 (leaf dockerfile-mode
   :ensure t
