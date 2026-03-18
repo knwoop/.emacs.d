@@ -74,7 +74,7 @@
   ;; Auto revert
   (global-auto-revert-mode 1)
   (setq auto-revert-interval 5
-        auto-revert-check-vc-info t
+        auto-revert-check-vc-info nil
         global-auto-revert-non-file-buffers t)
 
   ;; Backup & autosave
@@ -263,7 +263,7 @@
   :require t
   :setq
   (corfu-auto . t)
-  (corfu-auto-delay . 0.1)
+  (corfu-auto-delay . 0.2)
   (corfu-auto-prefix . 1)
   (corfu-cycle . t)
   (corfu-preselect . 'prompt)
@@ -335,7 +335,7 @@
   (lsp-modeline-diagnostics-enable . nil)
   (lsp-modeline-workspace-status-enable . nil)
   (lsp-eslint-auto-fix-on-save . t)
-  (lsp-eslint-run . "onType")
+  (lsp-eslint-run . "onSave")
   (lsp-go-gopls-server-args . '("-remote=auto"))
   :config
   (defun my/lsp-mode-setup-completion ()
@@ -656,7 +656,7 @@
   :ensure t
   :hook (prog-mode-hook . git-gutter-mode)
   :setq
-  (git-gutter:update-interval . 0.5)
+  (git-gutter:update-interval . 2)
   :blackout t)
 
 (leaf git-link
@@ -831,7 +831,7 @@
    ("M-p"     . copilot-previous-completion)
    ("C-g"     . copilot-clear-overlay))
   :setq
-  (copilot-idle-delay . 0.1)
+  (copilot-idle-delay . 0.3)
   (copilot-max-char . 5000000)
   (copilot-indent-offset-warning-disable . t)
   :config
