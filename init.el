@@ -490,7 +490,18 @@
 (leaf lsp-biome
   :when (package-installed-p 'lsp-biome)
   :after lsp-mode
-  :require t)
+  :require t
+  :config
+  ;; Run biome alongside ts-ls (and any other TS client) instead of
+  ;; competing with it, so lsp-mode doesn't prompt for a single server.
+  (when-let ((c (gethash 'biome lsp-clients)))
+    (setf (lsp--client-add-on? c) t)))
+
+;; Same treatment for emmet-ls: it's a snippet expander, never a primary
+;; language server — always run it as an add-on.
+(with-eval-after-load 'lsp-mode
+  (when-let ((c (gethash 'emmet-ls lsp-clients)))
+    (setf (lsp--client-add-on? c) t)))
 
 ;; ----------------------------------------------------------------------------
 ;; Rust
