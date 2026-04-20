@@ -36,15 +36,7 @@
 (leaf exec-path-from-shell
   :ensure t
   :config
-  (exec-path-from-shell-initialize)
-  ;; mise stores single-file tools (biome, etc.) outside a bin/ dir, so
-  ;; `mise activate' never adds them to PATH — only the shim dispatcher
-  ;; does. Ensure that dir is on exec-path and PATH so subprocesses
-  ;; (apheleia, lsp-biome) can find the shims.
-  (let ((shim-dir (expand-file-name "~/.local/share/mise/shims")))
-    (when (file-directory-p shim-dir)
-      (add-to-list 'exec-path shim-dir)
-      (setenv "PATH" (concat shim-dir path-separator (getenv "PATH"))))))
+  (exec-path-from-shell-initialize))
 
 ;; ============================================================================
 ;; Basic Settings
@@ -489,33 +481,23 @@
          (json-ts-mode-hook . add-node-modules-path)
          (json-mode-hook . add-node-modules-path)))
 
-;; lsp-biome: diagnostics / code actions / organize imports from biomejs.
-;; Not on MELPA — install from GitHub via package-vc-install (Emacs 29+).
-(when (and (not (package-installed-p 'lsp-biome))
-           (fboundp 'package-vc-install))
+;; lsp-biome — biome diagnostics & code actions.
+;; Not on MELPA; pulled from GitHub on first run (Emacs 29+).
+(when (and (fboundp 'package-vc-install)
+           (not (package-installed-p 'lsp-biome)))
   (package-vc-install "https://github.com/cxa/lsp-biome"))
-
-(defun my/lsp-mark-as-add-on (client-id)
-  "Flip CLIENT-ID's `add-on?' slot so it starts alongside the primary server.
-Uses `cl-struct-slot-value' to avoid a compile-time dependency on
-lsp-mode's struct definition."
-  (require 'cl-lib)
-  (when-let ((c (gethash client-id lsp-clients)))
-    (setf (cl-struct-slot-value 'lsp--client 'add-on? c) t)))
 
 (leaf lsp-biome
   :when (package-installed-p 'lsp-biome)
   :after lsp-mode
   :require t
   :config
-  ;; Run biome alongside ts-ls instead of competing with it, so lsp-mode
+  ;; Run biome (and emmet-ls if present) alongside ts-ls so lsp-mode
   ;; doesn't prompt the user to pick a single server.
-  (my/lsp-mark-as-add-on 'biome))
-
-;; Same treatment for emmet-ls: it's a snippet expander, never a primary
-;; language server — always run it as an add-on.
-(with-eval-after-load 'lsp-mode
-  (my/lsp-mark-as-add-on 'emmet-ls))
+  (require 'cl-lib)
+  (dolist (id '(biome emmet-ls))
+    (when-let ((c (gethash id lsp-clients)))
+      (setf (cl-struct-slot-value 'lsp--client 'add-on? c) t))))
 
 ;; ----------------------------------------------------------------------------
 ;; Rust
@@ -659,37 +641,16 @@ lsp-mode's struct definition."
   ;; Prettier / Biome
   (setf (alist-get 'prettier apheleia-formatters)
         '("npx" "prettier" "--stdin-filepath" filepath))
-  ;; biome resolves biome.json from the subprocess cwd, not from
-  ;; --stdin-file-path. Wrap with a shell snippet that walks the file's
-  ;; ancestors to locate biome.json(c) and passes --config-path, so the
-  ;; project config is always honored regardless of how Emacs spawns
-  ;; the formatter (worktrees, indirect buffers, stale default-directory).
   (setf (alist-get 'biome apheleia-formatters)
-        '("sh" "-c"
-          "f=$1; d=$(dirname \"$f\"); \
-while [ \"$d\" != / ] && [ \"$d\" != . ]; do \
-  if [ -e \"$d/biome.json\" ] || [ -e \"$d/biome.jsonc\" ]; then \
-    exec biome format --stdin-file-path=\"$f\" --config-path=\"$d\"; \
-  fi; \
-  d=$(dirname \"$d\"); \
-done; \
-exec biome format --stdin-file-path=\"$f\""
-          "--" filepath))
-
-  (defun my/biome-project-root ()
-    "Return the directory containing biome.json(c) above `default-directory'."
-    (locate-dominating-file
-     default-directory
-     (lambda (dir)
-       (or (file-exists-p (expand-file-name "biome.json" dir))
-           (file-exists-p (expand-file-name "biome.jsonc" dir))))))
+        '("biome" "format" "--stdin-file-path" filepath))
 
   (defun my/js-ts-pick-formatter ()
-    "Select biome if the project has a biome config, otherwise prettier."
-    (when (and (derived-mode-p 'typescript-ts-mode 'tsx-ts-mode
-                               'js-ts-mode 'js-mode
-                               'json-ts-mode 'json-mode)
-               (my/biome-project-root))
+    "Use biome when the project has biome.json(c), otherwise prettier."
+    (when (locate-dominating-file
+           default-directory
+           (lambda (dir)
+             (or (file-exists-p (expand-file-name "biome.json" dir))
+                 (file-exists-p (expand-file-name "biome.jsonc" dir)))))
       (setq-local apheleia-formatter '(biome))))
 
   (dolist (hook '(typescript-ts-mode-hook
@@ -697,14 +658,11 @@ exec biome format --stdin-file-path=\"$f\""
                   js-ts-mode-hook
                   js-mode-hook
                   json-ts-mode-hook
-                  json-mode-hook
-                  ;; Also run when apheleia-mode activates, so buffers
-                  ;; opened before this config loaded still pick biome.
-                  apheleia-mode-hook))
+                  json-mode-hook))
     (add-hook hook #'my/js-ts-pick-formatter))
 
-  ;; Apply to any TS/JS/JSON buffers that are already open at load time
-  ;; (e.g. when evaluating init.el interactively on a running daemon).
+  ;; Apply to buffers already open when init.el is (re-)evaluated, so a
+  ;; daemon restart isn't required during interactive config edits.
   (dolist (buf (buffer-list))
     (with-current-buffer buf
       (my/js-ts-pick-formatter)))
