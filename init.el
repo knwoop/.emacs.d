@@ -659,8 +659,22 @@ lsp-mode's struct definition."
   ;; Prettier / Biome
   (setf (alist-get 'prettier apheleia-formatters)
         '("npx" "prettier" "--stdin-filepath" filepath))
+  ;; biome resolves biome.json from the subprocess cwd, not from
+  ;; --stdin-file-path. Wrap with a shell snippet that walks the file's
+  ;; ancestors to locate biome.json(c) and passes --config-path, so the
+  ;; project config is always honored regardless of how Emacs spawns
+  ;; the formatter (worktrees, indirect buffers, stale default-directory).
   (setf (alist-get 'biome apheleia-formatters)
-        '("biome" "format" "--stdin-file-path" filepath))
+        '("sh" "-c"
+          "f=$1; d=$(dirname \"$f\"); \
+while [ \"$d\" != / ] && [ \"$d\" != . ]; do \
+  if [ -e \"$d/biome.json\" ] || [ -e \"$d/biome.jsonc\" ]; then \
+    exec biome format --stdin-file-path=\"$f\" --config-path=\"$d\"; \
+  fi; \
+  d=$(dirname \"$d\"); \
+done; \
+exec biome format --stdin-file-path=\"$f\""
+          "--" filepath))
 
   (defun my/biome-project-root ()
     "Return the directory containing biome.json(c) above `default-directory'."
