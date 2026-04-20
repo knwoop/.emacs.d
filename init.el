@@ -487,21 +487,27 @@
            (fboundp 'package-vc-install))
   (package-vc-install "https://github.com/cxa/lsp-biome"))
 
+(defun my/lsp-mark-as-add-on (client-id)
+  "Flip CLIENT-ID's `add-on?' slot so it starts alongside the primary server.
+Uses `cl-struct-slot-value' to avoid a compile-time dependency on
+lsp-mode's struct definition."
+  (require 'cl-lib)
+  (when-let ((c (gethash client-id lsp-clients)))
+    (setf (cl-struct-slot-value 'lsp--client 'add-on? c) t)))
+
 (leaf lsp-biome
   :when (package-installed-p 'lsp-biome)
   :after lsp-mode
   :require t
   :config
-  ;; Run biome alongside ts-ls (and any other TS client) instead of
-  ;; competing with it, so lsp-mode doesn't prompt for a single server.
-  (when-let ((c (gethash 'biome lsp-clients)))
-    (setf (lsp--client-add-on? c) t)))
+  ;; Run biome alongside ts-ls instead of competing with it, so lsp-mode
+  ;; doesn't prompt the user to pick a single server.
+  (my/lsp-mark-as-add-on 'biome))
 
 ;; Same treatment for emmet-ls: it's a snippet expander, never a primary
 ;; language server — always run it as an add-on.
 (with-eval-after-load 'lsp-mode
-  (when-let ((c (gethash 'emmet-ls lsp-clients)))
-    (setf (lsp--client-add-on? c) t)))
+  (my/lsp-mark-as-add-on 'emmet-ls))
 
 ;; ----------------------------------------------------------------------------
 ;; Rust
