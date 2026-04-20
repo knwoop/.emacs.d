@@ -686,7 +686,10 @@ exec biome format --stdin-file-path=\"$f\""
 
   (defun my/js-ts-pick-formatter ()
     "Select biome if the project has a biome config, otherwise prettier."
-    (when (my/biome-project-root)
+    (when (and (derived-mode-p 'typescript-ts-mode 'tsx-ts-mode
+                               'js-ts-mode 'js-mode
+                               'json-ts-mode 'json-mode)
+               (my/biome-project-root))
       (setq-local apheleia-formatter '(biome))))
 
   (dolist (hook '(typescript-ts-mode-hook
@@ -694,8 +697,17 @@ exec biome format --stdin-file-path=\"$f\""
                   js-ts-mode-hook
                   js-mode-hook
                   json-ts-mode-hook
-                  json-mode-hook))
+                  json-mode-hook
+                  ;; Also run when apheleia-mode activates, so buffers
+                  ;; opened before this config loaded still pick biome.
+                  apheleia-mode-hook))
     (add-hook hook #'my/js-ts-pick-formatter))
+
+  ;; Apply to any TS/JS/JSON buffers that are already open at load time
+  ;; (e.g. when evaluating init.el interactively on a running daemon).
+  (dolist (buf (buffer-list))
+    (with-current-buffer buf
+      (my/js-ts-pick-formatter)))
 
   (setf (alist-get 'typescript-ts-mode apheleia-mode-alist) '(prettier))
   (setf (alist-get 'tsx-ts-mode apheleia-mode-alist) '(prettier))
