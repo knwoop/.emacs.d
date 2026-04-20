@@ -329,7 +329,7 @@
   (lsp-headerline-breadcrumb-enable . t)
   (lsp-headerline-breadcrumb-segments . '(project file symbols))
   (lsp-lens-enable . nil)
-  (lsp-semantic-tokens-enable . t)
+  (lsp-semantic-tokens-enable . nil)
   (lsp-diagnostics-provider . :flymake)
   (lsp-modeline-code-actions-enable . nil)
   (lsp-modeline-diagnostics-enable . nil)
