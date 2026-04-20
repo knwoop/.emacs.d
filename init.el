@@ -481,6 +481,17 @@
          (json-ts-mode-hook . add-node-modules-path)
          (json-mode-hook . add-node-modules-path)))
 
+;; lsp-biome: diagnostics / code actions / organize imports from biomejs.
+;; Not on MELPA — install from GitHub via package-vc-install (Emacs 29+).
+(when (and (not (package-installed-p 'lsp-biome))
+           (fboundp 'package-vc-install))
+  (package-vc-install "https://github.com/cxa/lsp-biome"))
+
+(leaf lsp-biome
+  :when (package-installed-p 'lsp-biome)
+  :after lsp-mode
+  :require t)
+
 ;; ----------------------------------------------------------------------------
 ;; Rust
 ;; ----------------------------------------------------------------------------
