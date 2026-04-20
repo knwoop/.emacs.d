@@ -321,7 +321,7 @@
   (lsp-enable-text-document-color . nil)
   (lsp-enable-indentation . nil)
   (lsp-enable-on-type-formatting . nil)
-  (lsp-completion-provider . :capf)
+  (lsp-completion-provider . :none)
   (lsp-completion-show-detail . t)
   (lsp-completion-show-kind . t)
   (lsp-signature-auto-activate . nil)
@@ -654,14 +654,18 @@ lsp-mode's struct definition."
   (setf (alist-get 'biome apheleia-formatters)
         '("biome" "format" "--stdin-file-path" filepath))
 
+  (defun my/biome-project-root ()
+    "Return the directory containing biome.json(c) above `default-directory'."
+    (locate-dominating-file
+     default-directory
+     (lambda (dir)
+       (or (file-exists-p (expand-file-name "biome.json" dir))
+           (file-exists-p (expand-file-name "biome.jsonc" dir))))))
+
   (defun my/js-ts-pick-formatter ()
     "Select biome if the project has a biome config, otherwise prettier."
-    (when (locate-dominating-file
-           default-directory
-           (lambda (dir)
-             (or (file-exists-p (expand-file-name "biome.json" dir))
-                 (file-exists-p (expand-file-name "biome.jsonc" dir)))))
-      (setq-local apheleia-formatter 'biome)))
+    (when (my/biome-project-root)
+      (setq-local apheleia-formatter '(biome))))
 
   (dolist (hook '(typescript-ts-mode-hook
                   tsx-ts-mode-hook
