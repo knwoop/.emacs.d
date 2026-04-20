@@ -481,6 +481,28 @@
          (json-ts-mode-hook . add-node-modules-path)
          (json-mode-hook . add-node-modules-path)))
 
+;; lsp-biome: diagnostics / code actions / organize imports from biomejs.
+;; Not on MELPA — install from GitHub via package-vc-install (Emacs 29+).
+(when (and (not (package-installed-p 'lsp-biome))
+           (fboundp 'package-vc-install))
+  (package-vc-install "https://github.com/cxa/lsp-biome"))
+
+(leaf lsp-biome
+  :when (package-installed-p 'lsp-biome)
+  :after lsp-mode
+  :require t
+  :config
+  ;; Run biome alongside ts-ls (and any other TS client) instead of
+  ;; competing with it, so lsp-mode doesn't prompt for a single server.
+  (when-let ((c (gethash 'biome lsp-clients)))
+    (setf (lsp--client-add-on? c) t)))
+
+;; Same treatment for emmet-ls: it's a snippet expander, never a primary
+;; language server — always run it as an add-on.
+(with-eval-after-load 'lsp-mode
+  (when-let ((c (gethash 'emmet-ls lsp-clients)))
+    (setf (lsp--client-add-on? c) t)))
+
 ;; ----------------------------------------------------------------------------
 ;; Rust
 ;; ----------------------------------------------------------------------------
@@ -558,21 +580,20 @@
   :mode (("README\\.md\\'" . gfm-mode)
          ("\\.md\\'"       . markdown-mode)
          ("\\.markdown\\'" . markdown-mode))
-  :setq
-  (markdown-command . "pandoc"))
-
-(leaf markdown-preview-mode
-  :ensure t
+  :bind (:markdown-mode-map
+         ("C-c C-c p" . my/markdown-preview))
   :config
-  (setq markdown-preview-stylesheets
-        '("https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.8.1/github-markdown.min.css"
-          "<style>body{box-sizing:border-box;min-width:200px;max-width:980px;margin:0 auto;padding:45px;}</style>"))
-  (setq markdown-preview-javascript
-        '("https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"))
-  (setq markdown-preview-script-oninit
-        "mermaid.initialize({startOnLoad:false});")
-  (setq markdown-preview-script-onupdate
-        "var pres=document.querySelectorAll('pre.mermaid');pres.forEach(function(pre){var code=pre.querySelector('code');var text=code?code.textContent:pre.textContent;var div=document.createElement('div');div.className='mermaid';div.textContent=text;pre.parentNode.replaceChild(div,pre);});if(pres.length>0){mermaid.run();}"))
+  (defun my/markdown-preview ()
+    "Preview current markdown file with mo."
+    (interactive)
+    (shell-command (format "mo --open %s" (shell-quote-argument (buffer-file-name))))))
+
+(defun my/git-diff-preview ()
+  "Preview git diff via udm and mo in a browser."
+  (interactive)
+  (shell-command "mo --shutdown 2>/dev/null; git diff | udm --stat | mo"))
+
+(global-set-key (kbd "C-c d f") #'my/git-diff-preview)
 
 (leaf dockerfile-mode
   :ensure t
@@ -621,9 +642,29 @@
   :ensure t
   :hook (after-init-hook . apheleia-global-mode)
   :config
-  ;; Prettier
+  ;; Prettier / Biome
   (setf (alist-get 'prettier apheleia-formatters)
         '("npx" "prettier" "--stdin-filepath" filepath))
+  (setf (alist-get 'biome apheleia-formatters)
+        '("biome" "format" "--stdin-file-path" filepath))
+
+  (defun my/js-ts-pick-formatter ()
+    "Select biome if the project has a biome config, otherwise prettier."
+    (when (locate-dominating-file
+           default-directory
+           (lambda (dir)
+             (or (file-exists-p (expand-file-name "biome.json" dir))
+                 (file-exists-p (expand-file-name "biome.jsonc" dir)))))
+      (setq-local apheleia-formatter 'biome)))
+
+  (dolist (hook '(typescript-ts-mode-hook
+                  tsx-ts-mode-hook
+                  js-ts-mode-hook
+                  js-mode-hook
+                  json-ts-mode-hook
+                  json-mode-hook))
+    (add-hook hook #'my/js-ts-pick-formatter))
+
   (setf (alist-get 'typescript-ts-mode apheleia-mode-alist) '(prettier))
   (setf (alist-get 'tsx-ts-mode apheleia-mode-alist) '(prettier))
   (setf (alist-get 'js-ts-mode apheleia-mode-alist) '(prettier))
