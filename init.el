@@ -36,7 +36,15 @@
 (leaf exec-path-from-shell
   :ensure t
   :config
-  (exec-path-from-shell-initialize))
+  (exec-path-from-shell-initialize)
+  ;; mise stores single-file tools (biome, etc.) outside a bin/ dir, so
+  ;; `mise activate' never adds them to PATH — only the shim dispatcher
+  ;; does. Ensure that dir is on exec-path and PATH so subprocesses
+  ;; (apheleia, lsp-biome) can find the shims.
+  (let ((shim-dir (expand-file-name "~/.local/share/mise/shims")))
+    (when (file-directory-p shim-dir)
+      (add-to-list 'exec-path shim-dir)
+      (setenv "PATH" (concat shim-dir path-separator (getenv "PATH"))))))
 
 ;; ============================================================================
 ;; Basic Settings
