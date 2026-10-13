@@ -981,6 +981,202 @@ exec biome format --stdin-file-path=\"$f\""
 (global-set-key (kbd "C-c m l") #'muxac-list)
 
 ;; ============================================================================
+;; Beads (bd issue -> tmux session)
+;; ============================================================================
+
+;; Search the current repo's beads issues with bd-grep, read the picked one,
+;; then RET switches tmux to its epic's plan/work session like prefix-s.
+;; /bd-dev and /bd-go record `{plan,work}_worktree' (relative to the main
+;; repo root) and `{plan,work}_session' in the epic's metadata.
+
+(defun my/bd--repo-root ()
+  "Main repo root of `default-directory', resolved through worktrees."
+  (let* ((common (ignore-errors
+                   (car (process-lines "git" "rev-parse" "--path-format=absolute"
+                                       "--git-common-dir"))))
+         (root (and common (file-name-directory (directory-file-name common)))))
+    (unless root (user-error "Not in a git repository"))
+    (unless (file-directory-p (expand-file-name ".beads" root))
+      (user-error "No .beads in %s" root))
+    root))
+
+(defun my/bd--grep (root pattern)
+  "Return bd-grep hits in ROOT for PATTERN as lists of TSV fields."
+  (let ((err (make-temp-file "bd-grep")))
+    (unwind-protect
+        (with-temp-buffer
+          (pcase (call-process "bd-grep" nil (list t err) nil "-C" root "--" pattern)
+            (0 (mapcar (lambda (l) (split-string l "\t"))
+                       (split-string (buffer-string) "\n" t)))
+            (1 nil)
+            (_ (erase-buffer)
+               (insert-file-contents err)
+               (error "bd-grep: %s" (string-trim (buffer-string))))))
+      (delete-file err))))
+
+(defun my/bd--show (root id)
+  "Return issue ID in ROOT as an alist."
+  (with-temp-buffer
+    (unless (zerop (call-process "bd" nil '(t nil) nil
+                                 "-C" root "--readonly" "show" id "--json"))
+      (error "bd show %s failed" id))
+    (let ((data (json-parse-string (buffer-string) :object-type 'alist
+                                   :null-object nil :false-object nil)))
+      (if (vectorp data)
+          (aref data 0)
+        (error "bd show %s: %s" id (alist-get 'error data))))))
+
+(defun my/bd--epic (root id)
+  "Return the top-level issue above ID in ROOT."
+  (let ((issue (my/bd--show root id)))
+    (while-let ((parent (alist-get 'parent issue)))
+      (setq issue (my/bd--show root parent)))
+    issue))
+
+(defun my/bd--tmux-client ()
+  "Name of the tmux client showing this frame, or nil to let tmux pick."
+  (when-let* ((tty (frame-parameter nil 'tty))
+              (session (seq-some
+                        (lambda (line)
+                          (pcase (split-string line "\t")
+                            (`(,pane-tty ,name) (and (equal pane-tty tty) name))))
+                        (process-lines "tmux" "list-panes" "-a"
+                                       "-F" "#{pane_tty}\t#{session_name}"))))
+    (car (process-lines "tmux" "list-clients" "-t" (concat "=" session)
+                        "-F" "#{client_name}"))))
+
+(defun my/bd--switch-session (session dir)
+  "Switch tmux to SESSION, creating it in DIR first if it is gone."
+  (unless (zerop (call-process "tmux" nil nil nil "has-session" "-t" (concat "=" session)))
+    (unless (file-directory-p dir)
+      (user-error "Worktree not found: %s" dir))
+    (call-process "tmux" nil nil nil "new-session" "-d" "-s" session "-c" dir))
+  (let ((client (my/bd--tmux-client)))
+    (unless (zerop (apply #'call-process "tmux" nil nil nil "switch-client"
+                          (append (and client (list "-c" client))
+                                  (list "-t" (concat "=" session)))))
+      (user-error "tmux switch-client to %s failed" session))))
+
+(defun my/bd--open-session (root id)
+  "Switch to the plan or work tmux session of issue ID's epic in ROOT."
+  (let* ((epic (my/bd--epic root id))
+         (meta (alist-get 'metadata epic))
+         ;; A child issue is implemented in the work worktree; an epic is
+         ;; planned in the plan worktree.  Offer the likely one first.
+         (kinds (seq-filter (lambda (k) (alist-get (intern (concat k "_session")) meta))
+                            (if (equal id (alist-get 'id epic))
+                                '("plan" "work")
+                              '("work" "plan"))))
+         (kind (pcase kinds
+                 ('() (user-error "%s has no session metadata" (alist-get 'id epic)))
+                 (`(,only) only)
+                 (_ (completing-read "Session: " kinds nil t nil nil (car kinds))))))
+    (my/bd--switch-session
+     (alist-get (intern (concat kind "_session")) meta)
+     (expand-file-name (alist-get (intern (concat kind "_worktree")) meta) root))))
+
+(defvar-local my/bd--issue nil
+  "(ROOT . ID) of the issue shown in a `my/bd-issue-mode' buffer.")
+
+(define-derived-mode my/bd-issue-mode special-mode "bd-issue"
+  "Major mode for a beads issue rendered by `bd show'.
+\{my/bd-issue-mode-map}"
+  ;; `bd show' marks sections with all-caps headings (DESCRIPTION, COMMENTS, ...).
+  (setq-local font-lock-defaults '((("^[A-Z][A-Z ]+$" . 'bold)) t))
+  (setq-local revert-buffer-function #'my/bd--issue-revert))
+
+(keymap-set my/bd-issue-mode-map "RET" #'my/bd-issue-open-session)
+
+(defun my/bd--issue-revert (&rest _)
+  "Re-render the issue of this buffer with `bd show'."
+  (let ((inhibit-read-only t)
+        (root (car my/bd--issue))
+        (id (cdr my/bd--issue)))
+    (erase-buffer)
+    (unless (zerop (call-process "bd" nil '(t nil) nil "-C" root "--readonly" "show" id))
+      (error "bd show %s failed" id))
+    (goto-char (point-min))))
+
+(defun my/bd-issue-open-session ()
+  "Switch to the tmux session of the issue shown in this buffer."
+  (interactive)
+  (my/bd--open-session (car my/bd--issue) (cdr my/bd--issue)))
+
+(defun my/bd--display-issue (root id)
+  "Show issue ID of ROOT in a `my/bd-issue-mode' buffer."
+  (let ((buf (get-buffer-create (format "*bd: %s*" id))))
+    (with-current-buffer buf
+      (my/bd-issue-mode)
+      (setq my/bd--issue (cons root id))
+      (revert-buffer))
+    (pop-to-buffer-same-window buf)))
+
+(defun my/bd--read-issue (prompt candidates)
+  "Read one of CANDIDATES, an alist of (DISPLAY . ID), keeping their order."
+  (let ((table (lambda (string pred action)
+                 (if (eq action 'metadata)
+                     '(metadata (display-sort-function . identity))
+                   (complete-with-action action candidates string pred)))))
+    (cdr (assoc (completing-read prompt table nil t) candidates))))
+
+(defun my/bd-grep-issue (pattern)
+  "Full-text search beads issues for PATTERN and show the selected one.
+In the issue buffer, RET switches to its epic's plan or work session."
+  (interactive "sbd-grep: ")
+  (let* ((root (my/bd--repo-root))
+         (hits (or (my/bd--grep root pattern)
+                   (user-error "No issues match %s" pattern))))
+    (my/bd--display-issue
+     root
+     (my/bd--read-issue
+      "Issue: "
+      (mapcar (pcase-lambda (`(,id ,status ,title ,_field ,snippet))
+                (cons (format "%-20s %-11s %s  %s"
+                              id status title (propertize snippet 'face 'shadow))
+                      id))
+              hits)))))
+
+(defvar orderless-matching-styles)
+
+(defun my/bd--date (timestamp)
+  "Local YYYY-MM-DD of bd's RFC 3339 TIMESTAMP, or blanks when missing."
+  (if timestamp
+      (format-time-string "%Y-%m-%d" (date-to-time timestamp))
+    (make-string 10 ?\s)))
+
+(defun my/bd-find-issue ()
+  "Fuzzy-find a beads issue among all issues, most recently updated first.
+Type to narrow like fzf; in the issue buffer, RET switches to its epic's
+plan or work session."
+  (interactive)
+  (let* ((root (my/bd--repo-root))
+         (issues (with-temp-buffer
+                   (unless (zerop (call-process "bd" nil '(t nil) nil "-C" root "--readonly"
+                                                "list" "--all" "--limit" "0"
+                                                "--sort" "updated" "--json"))
+                     (error "bd list failed"))
+                   (json-parse-string (buffer-string) :object-type 'alist
+                                      :null-object nil :false-object nil)))
+         (candidates
+          (mapcar (lambda (issue)
+                    (let-alist issue
+                      (cons (format "%-20s %-11s %s  %s"
+                                    .id .status
+                                    (propertize (format "%s %s"
+                                                        (my/bd--date .created_at)
+                                                        (my/bd--date .updated_at))
+                                                'face 'shadow)
+                                    .title)
+                            .id)))
+                  issues))
+         ;; Let every space-separated word also match as a subsequence, fzf style.
+         (orderless-matching-styles '(orderless-literal orderless-regexp orderless-flex)))
+    (my/bd--display-issue root (my/bd--read-issue "Issue: " candidates))))
+
+(global-set-key (kbd "C-c b f") #'my/bd-find-issue)
+(global-set-key (kbd "C-c b s") #'my/bd-grep-issue)
+
+;; ============================================================================
 ;; Terminal / Shell
 ;; ============================================================================
 
